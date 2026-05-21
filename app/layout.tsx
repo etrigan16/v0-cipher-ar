@@ -1,16 +1,21 @@
 import type { Metadata } from 'next'
-import { JetBrains_Mono } from 'next/font/google'
+import { Inter, JetBrains_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
+const inter = Inter({ 
+  subsets: ["latin"],
+  variable: '--font-inter'
+});
+
 const jetbrainsMono = JetBrains_Mono({ 
   subsets: ["latin"],
-  variable: '--font-mono'
+  variable: '--font-jetbrains'
 });
 
 export const metadata: Metadata = {
-  title: 'Cipher.ar | Ciberseguridad Táctica para PyMEs',
-  description: 'Auditorías de seguridad, análisis de riesgos, hardening de infraestructura. Soluciones de ciberseguridad profesionales para empresas que toman en serio su protección digital.',
+  title: 'Cipher.ar | Infraestructura robusta. Software blindado.',
+  description: 'Consultoría táctica en ciberseguridad y redes. Diseñamos sistemas que no pueden permitirse fallar.',
   generator: 'v0.app',
   icons: {
     icon: [
@@ -37,8 +42,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="es" className={`dark bg-background ${jetbrainsMono.variable}`}>
-      <body className="font-mono antialiased bg-background text-foreground">
+    <html lang="es" className={`dark bg-background ${inter.variable} ${jetbrainsMono.variable}`}>
+      <body className="font-sans antialiased bg-background text-foreground">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>

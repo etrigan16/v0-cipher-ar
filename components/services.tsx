@@ -1,70 +1,91 @@
-import { Lock, Network, Database, Server, AlertTriangle, MessageSquare } from 'lucide-react';
+import { Network, Code, Users } from "lucide-react"
 
-const services = [
-  {
-    icon: Lock,
-    title: 'AUDITORÍA DE SEGURIDAD',
-    description: 'Análisis profundo de vulnerabilidades, evaluación de controles y pruebas de penetración en tu infraestructura.',
-  },
+const pillars = [
   {
     icon: Network,
-    title: 'SEGURIDAD DE REDES',
-    description: 'Configuración segura de firewalls, VPNs, segmentación de red y políticas de acceso basadas en principios zero-trust.',
+    number: "01",
+    title: "NETWORKING & SECURITY",
+    subtitle: "Arquitectura de red blindada",
+    features: [
+      { label: "SEGMENTACIÓN", desc: "VLANs y aislamiento de tráfico para evitar propagación de malware." },
+      { label: "HARDENING", desc: "Configuración de Firewalls (CLI) y cierre de perímetros vulnerables." },
+      { label: "ACCESO", desc: "Políticas de identidad y control de acceso robusto para PyMEs." },
+    ],
   },
   {
-    icon: Database,
-    title: 'PROTECCIÓN DE DATOS',
-    description: 'Implementación de cifrado, gestión de accesos, cumplimiento normativo y estrategias de backup y disaster recovery.',
+    icon: Code,
+    number: "02",
+    title: "SECURE SOFTWARE",
+    subtitle: "Desarrollo con seguridad nativa",
+    features: [
+      { label: "BACKEND", desc: "Construcción robusta con Nest.js y PostgreSQL." },
+      { label: "FRONTEND", desc: "Interfaces performantes con Next.js (App Router)." },
+      { label: "SESIONES", desc: "Gestión blindada con HttpOnly Cookies y tokens seguros." },
+    ],
   },
   {
-    icon: Server,
-    title: 'HARDENING DE INFRAESTRUCTURA',
-    description: 'Fortalecimiento de servidores, aplicaciones y sistemas operativos contra ataques conocidos y emergentes.',
+    icon: Users,
+    number: "03",
+    title: "ARCHITECTURE & PM",
+    subtitle: "Liderazgo técnico estratégico",
+    features: [
+      { label: "ESCALABILIDAD", desc: "Diseño de Monorepos (Turborepo) para startups que necesitan crecer sin caos." },
+      { label: "AGILE OPS", desc: "Liderazgo de proyectos (PM) para ordenar el flujo de equipos técnicos." },
+      { label: "AUDITORÍA", desc: "Revisión de arquitectura existente y recomendaciones de mejora." },
+    ],
   },
-  {
-    icon: AlertTriangle,
-    title: 'RESPUESTA A INCIDENTES',
-    description: 'Investigación post-incidente, contención de amenazas y planes de remediación inmediata.',
-  },
-  {
-    icon: MessageSquare,
-    title: 'CONSULTORÍA ESTRATÉGICA',
-    description: 'Roadmaps de seguridad, política de gestión de riesgos y capacitación al equipo en buenas prácticas.',
-  },
-];
+]
 
 export function ServicesSection() {
   return (
-    <section id="servicios" className="px-4 sm:px-6 lg:px-8 py-20 bg-background border-b border-foreground">
+    <section id="soluciones" className="px-4 sm:px-6 lg:px-8 py-20 bg-background border-b border-border">
       <div className="max-w-7xl mx-auto">
+        {/* Header */}
         <div className="mb-16">
-          <h2 className="text-4xl sm:text-5xl font-bold text-foreground font-mono mb-4">SERVICIOS</h2>
-          <div className="w-16 h-1 bg-foreground mb-6"></div>
-          <p className="text-lg text-foreground/70 font-mono max-w-2xl">
-            Soluciones completas de ciberseguridad adaptadas al tamaño y necesidades específicas de tu empresa.
+          <p className="font-mono text-sm text-primary mb-2">// SOLUCIONES</p>
+          <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
+            Tres pilares de protección
+          </h2>
+          <p className="text-muted-foreground max-w-2xl">
+            Servicios diseñados para empresas que necesitan infraestructura robusta, software blindado y liderazgo técnico sin compromisos.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {services.map((service, i) => {
-            const Icon = service.icon;
+        {/* Pillars Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-px bg-border">
+          {pillars.map((pillar) => {
+            const Icon = pillar.icon
             return (
               <div
-                key={i}
-                className="bg-background border border-foreground p-8 hover:bg-foreground hover:text-background transition-all group"
+                key={pillar.number}
+                className="bg-background p-8 border border-border hover:border-primary transition-colors group"
               >
-                <Icon className="w-8 h-8 text-foreground mb-4 group-hover:text-background" />
-                <h3 className="text-lg font-bold font-mono mb-3 text-foreground group-hover:text-background">
-                  {service.title}
-                </h3>
-                <p className="text-foreground/70 group-hover:text-background/80 text-sm leading-relaxed">
-                  {service.description}
-                </p>
+                {/* Pillar Header */}
+                <div className="flex items-start justify-between mb-6">
+                  <div>
+                    <span className="font-mono text-xs text-muted-foreground">PILAR {pillar.number}</span>
+                    <h3 className="font-mono text-lg font-bold text-foreground mt-1 group-hover:text-primary transition-colors">
+                      {pillar.title}
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1">{pillar.subtitle}</p>
+                  </div>
+                  <Icon className="w-8 h-8 text-primary/50 group-hover:text-primary transition-colors" />
+                </div>
+
+                {/* Features */}
+                <div className="space-y-4 border-t border-border pt-6">
+                  {pillar.features.map((feature, i) => (
+                    <div key={i}>
+                      <span className="font-mono text-xs text-primary">{feature.label}</span>
+                      <p className="text-sm text-muted-foreground mt-1">{feature.desc}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
-            );
+            )
           })}
         </div>
       </div>
     </section>
-  );
+  )
 }

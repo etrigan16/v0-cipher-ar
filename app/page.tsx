@@ -1,13 +1,8 @@
 import { Navbar } from "@/components/navbar"
 import { HeroSection, TrustedBySection } from "@/components/hero"
 import { ServicesSection } from "@/components/services"
-import { AboutSection, TeamSection } from "@/components/about"
-import { CaseStudiesSection } from "@/components/case-studies"
-import { ThreatsSection } from "@/components/threats"
-import { FAQSection } from "@/components/faq"
-import { TestimonialsSection } from "@/components/testimonials"
-import { RiskCalculatorSection } from "@/components/risk-calculator"
-import { NewsletterSection } from "@/components/newsletter"
+import { IntelligenceSection } from "@/components/intelligence"
+import { AuditExpressSection } from "@/components/audit-express"
 import { ContactSection } from "@/components/contact"
 import { Footer } from "@/components/footer"
 
@@ -18,14 +13,8 @@ export default function HomePage() {
       <HeroSection />
       <TrustedBySection />
       <ServicesSection />
-      <CaseStudiesSection />
-      <ThreatsSection />
-      <RiskCalculatorSection />
-      <AboutSection />
-      <TeamSection />
-      <TestimonialsSection />
-      <FAQSection />
-      <NewsletterSection />
+      <IntelligenceSection />
+      <AuditExpressSection />
       <ContactSection />
       <Footer />
     </main>

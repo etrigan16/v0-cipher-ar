@@ -1,80 +1,120 @@
-import { ArrowRight, Shield } from 'lucide-react';
-import Link from 'next/link';
+"use client"
+
+import { useEffect, useState } from "react"
+import { ArrowRight, Terminal } from "lucide-react"
+
+const terminalLines = [
+  { text: "$ cipher --audit --target=infrastructure", delay: 0 },
+  { text: "[SCAN] Analyzing network topology...", delay: 800 },
+  { text: "[SCAN] Checking firewall rules...", delay: 1600 },
+  { text: "[VULN] Found 3 critical vulnerabilities", delay: 2400 },
+  { text: "[FIX] Generating remediation plan...", delay: 3200 },
+  { text: "[OK] Security posture: HARDENED", delay: 4000 },
+]
+
+function TerminalSimulator() {
+  const [visibleLines, setVisibleLines] = useState<number>(0)
+  const [cursorVisible, setCursorVisible] = useState(true)
+
+  useEffect(() => {
+    const lineTimers = terminalLines.map((line, index) =>
+      setTimeout(() => setVisibleLines(index + 1), line.delay)
+    )
+
+    const cursorInterval = setInterval(() => {
+      setCursorVisible((v) => !v)
+    }, 500)
+
+    return () => {
+      lineTimers.forEach(clearTimeout)
+      clearInterval(cursorInterval)
+    }
+  }, [])
+
+  return (
+    <div className="border border-border bg-card p-4 font-mono text-sm">
+      <div className="flex items-center gap-2 border-b border-border pb-2 mb-3">
+        <div className="flex gap-1.5">
+          <div className="w-3 h-3 bg-destructive"></div>
+          <div className="w-3 h-3 bg-primary/50"></div>
+          <div className="w-3 h-3 bg-primary"></div>
+        </div>
+        <span className="text-muted-foreground text-xs">cipher@secure:~</span>
+      </div>
+      <div className="space-y-1 min-h-[180px]">
+        {terminalLines.slice(0, visibleLines).map((line, index) => (
+          <div key={index} className={`${line.text.includes("[VULN]") ? "text-destructive" : line.text.includes("[OK]") ? "text-primary" : "text-foreground"}`}>
+            {line.text}
+          </div>
+        ))}
+        {visibleLines < terminalLines.length && (
+          <span className={`${cursorVisible ? "opacity-100" : "opacity-0"} text-primary`}>_</span>
+        )}
+      </div>
+    </div>
+  )
+}
 
 export function HeroSection() {
   return (
-    <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 bg-background border-b border-foreground">
+    <section className="pt-24 pb-16 px-4 sm:px-6 lg:px-8 bg-background border-b border-border">
       <div className="max-w-7xl mx-auto">
-        {/* Main Heading */}
-        <div className="mb-12">
-          <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold text-foreground font-mono leading-tight mb-6">
-            CIBERSEGURIDAD
-            <br />
-            TÁCTICA
-          </h1>
-          <div className="border-t-2 border-foreground w-32 my-6"></div>
-          <p className="text-lg sm:text-xl text-foreground/80 font-mono max-w-2xl leading-relaxed">
-            Auditorías de seguridad, análisis de riesgos e implementación de protecciones para empresas que
-            necesitan defender su infraestructura digital. Sin bordes suavizados, sin marketing hueco.
-            <span className="text-foreground/60"> Solo soluciones.</span>
-          </p>
-        </div>
+        <div className="grid lg:grid-cols-2 gap-12 items-center">
+          {/* Left: Copy */}
+          <div>
+            <p className="font-mono text-sm text-primary mb-4 tracking-wider">
+              // CIPHER.AR — CONSULTORÍA TÁCTICA
+            </p>
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-tight mb-6 text-balance">
+              Diseñamos sistemas que no pueden permitirse fallar.
+            </h1>
+            <p className="text-lg text-muted-foreground mb-8 leading-relaxed max-w-xl">
+              Infraestructura robusta. Software blindado. Consultoría táctica en ciberseguridad y redes para empresas que toman en serio su protección digital.
+            </p>
+            
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4">
+              <a
+                href="#audit-express"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-mono text-sm font-medium hover:opacity-90 transition-opacity"
+              >
+                AUDIT EXPRESS
+                <ArrowRight size={18} />
+              </a>
+              <a
+                href="#soluciones"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-border text-foreground font-mono text-sm font-medium hover:border-primary hover:text-primary transition-colors"
+              >
+                VER SOLUCIONES
+              </a>
+            </div>
+          </div>
 
-        {/* Stats Line */}
-        <div className="flex flex-wrap gap-8 mb-12 border-t border-b border-foreground py-6">
-          <div>
-            <div className="text-sm text-foreground/60 font-mono">SERVICIOS ACTIVOS</div>
-            <div className="text-2xl text-foreground font-bold font-mono">6+</div>
+          {/* Right: Terminal */}
+          <div className="lg:pl-8">
+            <TerminalSimulator />
           </div>
-          <div>
-            <div className="text-sm text-foreground/60 font-mono">AUDITORÍAS COMPLETADAS</div>
-            <div className="text-2xl text-foreground font-bold font-mono">50+</div>
-          </div>
-          <div>
-            <div className="text-sm text-foreground/60 font-mono">VULNERABILIDADES DESCUBIERTAS</div>
-            <div className="text-2xl text-foreground font-bold font-mono">200+</div>
-          </div>
-        </div>
-
-        {/* CTA Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <Link
-            href="#contacto"
-            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-foreground text-background font-bold font-mono border border-foreground hover:opacity-80 transition-opacity"
-          >
-            <Shield size={20} />
-            SOLICITAR AUDITORÍA
-            <ArrowRight size={20} />
-          </Link>
-          <Link
-            href="#riesgos"
-            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-background text-foreground border border-foreground font-bold font-mono hover:bg-foreground hover:text-background transition-all"
-          >
-            EVALUAR RIESGOS
-          </Link>
         </div>
       </div>
     </section>
-  );
+  )
 }
 
 export function TrustedBySection() {
-  const companies = ['TechCorp', 'DataSafe', 'InnovatePyme', 'SecureNet', 'CloudFirst'];
-
   return (
-    <section className="px-4 sm:px-6 lg:px-8 py-16 border-t border-foreground bg-background">
-      <div className="max-w-7xl mx-auto text-center">
-        <p className="text-foreground/60 text-sm uppercase tracking-widest font-mono mb-8">
-          EMPRESAS QUE CONFÍAN EN CIPHER.AR
+    <section className="px-4 sm:px-6 lg:px-8 py-12 border-b border-border bg-background">
+      <div className="max-w-7xl mx-auto">
+        <p className="font-mono text-xs text-muted-foreground uppercase tracking-widest mb-6 text-center">
+          // Infraestructura segura para
         </p>
         <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16">
-          {companies.map((company, i) => (
-            <div key={i} className="text-foreground/40 font-mono text-lg hover:text-foreground/70 transition-colors">
-              {company}
+          {["PyMEs", "Startups", "Corporativos", "Gobierno", "Fintech"].map((segment, i) => (
+            <div key={i} className="font-mono text-sm text-muted-foreground hover:text-primary transition-colors">
+              [{segment}]
             </div>
           ))}
         </div>
       </div>
     </section>
-  );
+  )
 }

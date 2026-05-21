@@ -1,48 +1,51 @@
-'use client';
+"use client"
 
-import { useState } from 'react';
-import Link from 'next/link';
-import { Menu, X } from 'lucide-react';
+import { useState } from "react"
+import Link from "next/link"
+import { Menu, X } from "lucide-react"
+
+const navItems = [
+  { href: "#soluciones", label: "Soluciones" },
+  { href: "#intelligence", label: "Intelligence" },
+  { href: "#audit-express", label: "Audit Express" },
+]
 
 export function Navbar() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  const navItems = [
-    { href: '#servicios', label: 'SERVICIOS' },
-    { href: '#casos', label: 'CASOS DE ESTUDIO' },
-    { href: '#amenazas', label: 'AMENAZAS' },
-    { href: '#riesgos', label: 'CALCULADORA' },
-    { href: '#sobre', label: 'SOBRE NOSOTROS' },
-    { href: '#faq', label: 'FAQ' },
-    { href: '#contacto', label: 'CONTACTO' },
-  ];
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   return (
-    <nav className="fixed top-0 w-full bg-background border-b border-foreground z-50">
+    <nav className="fixed top-0 w-full bg-background border-b border-border z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link href="#" className="text-foreground font-bold text-xl tracking-wider hover:opacity-70">
-            CIPHER.AR
+          <Link href="#" className="font-mono text-xl font-bold tracking-wider">
+            <span className="text-foreground">CIPHER</span>
+            <span className="text-primary">.AR</span>
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden lg:flex gap-8">
+          <div className="hidden md:flex items-center gap-8">
             {navItems.map((item) => (
               <a
                 key={item.href}
                 href={item.href}
-                className="text-foreground text-sm font-mono tracking-widest hover:opacity-70 transition-opacity"
+                className="font-mono text-sm text-muted-foreground hover:text-primary transition-colors"
               >
-                {item.label}
+                [{item.label}]
               </a>
             ))}
+            <a
+              href="#contacto"
+              className="font-mono text-sm border border-primary px-4 py-2 text-primary hover:bg-primary hover:text-background transition-colors"
+            >
+              [Contacto]
+            </a>
           </div>
 
           {/* Mobile Menu Button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="lg:hidden text-foreground border border-foreground p-2 hover:bg-foreground hover:text-background"
+            className="md:hidden text-foreground border border-border p-2 hover:border-primary hover:text-primary transition-colors"
           >
             {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
@@ -50,20 +53,27 @@ export function Navbar() {
 
         {/* Mobile Navigation */}
         {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-foreground bg-background">
+          <div className="md:hidden border-t border-border bg-background">
             {navItems.map((item) => (
               <a
                 key={item.href}
                 href={item.href}
-                className="block px-4 py-3 text-foreground text-sm font-mono border-b border-foreground hover:bg-foreground hover:text-background"
+                className="block px-4 py-3 font-mono text-sm text-muted-foreground border-b border-border hover:text-primary hover:bg-card transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                {item.label}
+                [{item.label}]
               </a>
             ))}
+            <a
+              href="#contacto"
+              className="block px-4 py-3 font-mono text-sm text-primary border-b border-border hover:bg-primary hover:text-background transition-colors"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              [Contacto]
+            </a>
           </div>
         )}
       </div>
     </nav>
-  );
+  )
 }
