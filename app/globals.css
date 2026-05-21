@@ -53,8 +53,8 @@
 }
 
 @theme inline {
-  --font-sans: 'JetBrains Mono', 'Courier New', monospace;
-  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+  --font-sans: var(--font-mono), 'JetBrains Mono', 'Courier New', monospace;
+  --font-mono: var(--font-mono), 'JetBrains Mono', 'Courier New', monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

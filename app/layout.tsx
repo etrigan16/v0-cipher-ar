@@ -3,7 +3,10 @@ import { JetBrains_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
-const _jetbrainsMono = JetBrains_Mono({ subsets: ["latin"] });
+const jetbrainsMono = JetBrains_Mono({ 
+  subsets: ["latin"],
+  variable: '--font-mono'
+});
 
 export const metadata: Metadata = {
   title: 'Cipher.ar | Ciberseguridad Táctica para PyMEs',
@@ -34,7 +37,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="es" className="dark bg-background">
+    <html lang="es" className={`dark bg-background ${jetbrainsMono.variable}`}>
       <body className="font-mono antialiased bg-background text-foreground">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
