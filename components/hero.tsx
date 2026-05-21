@@ -105,10 +105,10 @@ export function TrustedBySection() {
     <section className="px-4 sm:px-6 lg:px-8 py-12 border-b border-border bg-background">
       <div className="max-w-7xl mx-auto">
         <p className="font-mono text-xs text-muted-foreground uppercase tracking-widest mb-6 text-center">
-          // Infraestructura segura para
+          // INFRAESTRUCTURA Y DESARROLLO SEGURO PARA:
         </p>
-        <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16">
-          {["PyMEs", "Startups", "Corporativos", "Gobierno", "Fintech"].map((segment, i) => (
+        <div className="flex flex-wrap justify-center items-center gap-6 md:gap-12">
+          {["Startups & MVPs", "Infraestructura PyME", "Redes Distribuidas"].map((segment, i) => (
             <div key={i} className="font-mono text-sm text-muted-foreground hover:text-primary transition-colors">
               [{segment}]
             </div>

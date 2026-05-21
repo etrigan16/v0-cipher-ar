@@ -7,9 +7,9 @@ const pillars = [
     title: "NETWORKING & SECURITY",
     subtitle: "Arquitectura de red blindada",
     features: [
-      { label: "SEGMENTACIÓN", desc: "VLANs y aislamiento de tráfico para evitar propagación de malware." },
-      { label: "HARDENING", desc: "Configuración de Firewalls (CLI) y cierre de perímetros vulnerables." },
-      { label: "ACCESO", desc: "Políticas de identidad y control de acceso robusto para PyMEs." },
+      { label: "SEGMENTACIÓN VLAN", desc: "Diseño e implementación de VLANs para aislamiento de tráfico crítico y contención de amenazas laterales." },
+      { label: "FIREWALLS CLI", desc: "Configuración avanzada de Firewalls via línea de comandos (pfSense, iptables, Cisco IOS) para máximo control." },
+      { label: "ZERO TRUST", desc: "Políticas de acceso basadas en identidad y contexto. Nada se confía por defecto." },
     ],
   },
   {
@@ -18,9 +18,9 @@ const pillars = [
     title: "SECURE SOFTWARE",
     subtitle: "Desarrollo con seguridad nativa",
     features: [
-      { label: "BACKEND", desc: "Construcción robusta con Nest.js y PostgreSQL." },
-      { label: "FRONTEND", desc: "Interfaces performantes con Next.js (App Router)." },
-      { label: "SESIONES", desc: "Gestión blindada con HttpOnly Cookies y tokens seguros." },
+      { label: "BACKEND NEST.JS", desc: "APIs robustas con NestJS, validación estricta, guards de autenticación y PostgreSQL hardened." },
+      { label: "FRONTEND NEXT.JS", desc: "Interfaces con Next.js App Router, Server Components y protección contra XSS/CSRF incorporada." },
+      { label: "SESIONES HTTPONLY", desc: "Autenticación blindada con HttpOnly Cookies, refresh tokens seguros y rotación automática." },
     ],
   },
   {
@@ -29,9 +29,9 @@ const pillars = [
     title: "ARCHITECTURE & PM",
     subtitle: "Liderazgo técnico estratégico",
     features: [
-      { label: "ESCALABILIDAD", desc: "Diseño de Monorepos (Turborepo) para startups que necesitan crecer sin caos." },
-      { label: "AGILE OPS", desc: "Liderazgo de proyectos (PM) para ordenar el flujo de equipos técnicos." },
-      { label: "AUDITORÍA", desc: "Revisión de arquitectura existente y recomendaciones de mejora." },
+      { label: "TURBOREPO", desc: "Arquitectura de Monorepos con Turborepo para startups que necesitan escalar sin deuda técnica." },
+      { label: "SCRUM PARA MVPS", desc: "Metodología ágil adaptada: sprints cortos, demos frecuentes y entrega continua de valor." },
+      { label: "TECH DUE DILIGENCE", desc: "Auditoría de arquitectura existente para inversores, adquisiciones o refactoring estratégico." },
     ],
   },
 ]

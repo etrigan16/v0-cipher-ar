@@ -1,12 +1,11 @@
 import { CheckCircle, ArrowRight, Zap } from "lucide-react"
 
 const auditFeatures = [
-  "Análisis de superficie de ataque",
-  "Revisión de configuraciones de red",
-  "Evaluación de políticas de acceso",
-  "Identificación de vulnerabilidades críticas",
-  "Reporte ejecutivo con recomendaciones",
-  "Plan de remediación priorizado",
+  "Analisis de perimetro y superficie de ataque",
+  "Revision de politicas de acceso y privilegios",
+  "Evaluacion de autenticacion web (cookies, tokens, sesiones)",
+  "Identificacion de debilidades en Firewalls y ACLs",
+  "Reporte de remediacion con prioridades claras",
 ]
 
 export function AuditExpressSection() {

@@ -2,27 +2,27 @@ import { AlertTriangle, FileText, Shield, Clock } from "lucide-react"
 
 const reports = [
   {
-    type: "ALERTA",
+    type: "ANÁLISIS",
     date: "2024-01-15",
-    title: "CVE-2024-0001: Vulnerabilidad crítica en OpenSSL",
+    title: "Robo de sesiones web: Por qué LocalStorage es el mejor amigo de un ataque XSS",
     severity: "CRÍTICO",
-    excerpt: "Nueva vulnerabilidad de ejecución remota de código descubierta. Actualización inmediata recomendada.",
+    excerpt: "Análisis técnico de cómo los tokens almacenados en LocalStorage quedan expuestos a scripts maliciosos. Alternativas seguras con HttpOnly Cookies.",
     icon: AlertTriangle,
   },
   {
-    type: "ANÁLISIS",
+    type: "INFRAESTRUCTURA",
     date: "2024-01-12",
-    title: "Ransomware LockBit 3.0: Tácticas y mitigación",
+    title: "Redes corporativas planas: El peligro oculto de no segmentar tu infraestructura",
     severity: "ALTO",
-    excerpt: "Análisis técnico de las nuevas variantes y estrategias de defensa para infraestructuras PyME.",
+    excerpt: "Por qué una red sin VLANs permite que un atacante se mueva lateralmente. Guía de segmentación para PyMEs.",
     icon: FileText,
   },
   {
     type: "CASO",
     date: "2024-01-08",
-    title: "De la brecha al blindaje: Caso empresa logística",
+    title: "Migración de arquitectura: Llevando un frontend de Vite a Next.js App Router",
     severity: "RESUELTO",
-    excerpt: "Cómo convertimos un incidente de seguridad en una oportunidad para fortalecer la infraestructura.",
+    excerpt: "Caso real de migración: problemas encontrados, decisiones de arquitectura y mejoras de rendimiento obtenidas.",
     icon: Shield,
   },
 ]
