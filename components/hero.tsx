@@ -1,90 +1,80 @@
-import { Lock, ChevronRight, ShieldCheck, Server, Eye } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import Link from "next/link"
+import { ArrowRight, Shield } from 'lucide-react';
+import Link from 'next/link';
 
 export function HeroSection() {
   return (
-    <section className="px-6 lg:px-12 py-20 lg:py-32 relative overflow-hidden">
-      {/* Background subtle grid */}
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(59,130,246,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(59,130,246,0.03)_1px,transparent_1px)] bg-[size:60px_60px]" />
-      
-      <div className="max-w-5xl mx-auto text-center relative">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card border border-border text-sm text-muted-foreground mb-8">
-          <Lock className="w-4 h-4 text-primary" />
-          <span>Proteccion empresarial de nivel avanzado</span>
-        </div>
-        
-        <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight text-balance">
-          Ciberseguridad para{" "}
-          <span className="text-primary">PyMEs</span>{" "}
-          que no pueden permitirse vulnerabilidades
-        </h1>
-        
-        <p className="text-muted-foreground text-lg md:text-xl mb-10 max-w-2xl mx-auto leading-relaxed text-pretty">
-          Auditorias de seguridad, analisis de infraestructura y proteccion de datos. 
-          Soluciones adaptadas a tu presupuesto y necesidades especificas.
-        </p>
-        
-        <div className="flex flex-col sm:flex-row justify-center gap-4 mb-16">
-          <Button size="lg" asChild className="bg-primary text-primary-foreground hover:bg-primary/90">
-            <Link href="#contacto">
-              Solicitar Auditoria
-              <ChevronRight className="w-4 h-4 ml-2" />
-            </Link>
-          </Button>
-          <Button size="lg" variant="outline" asChild className="border-border text-foreground hover:bg-card">
-            <Link href="#casos">
-              Ver Casos de Estudio
-            </Link>
-          </Button>
+    <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 bg-background border-b border-foreground">
+      <div className="max-w-7xl mx-auto">
+        {/* Main Heading */}
+        <div className="mb-12">
+          <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold text-foreground font-mono leading-tight mb-6">
+            CIBERSEGURIDAD
+            <br />
+            TÁCTICA
+          </h1>
+          <div className="border-t-2 border-foreground w-32 my-6"></div>
+          <p className="text-lg sm:text-xl text-foreground/80 font-mono max-w-2xl leading-relaxed">
+            Auditorías de seguridad, análisis de riesgos e implementación de protecciones para empresas que
+            necesitan defender su infraestructura digital. Sin bordes suavizados, sin marketing hueco.
+            <span className="text-foreground/60"> Solo soluciones.</span>
+          </p>
         </div>
 
-        {/* Feature highlights */}
-        <div className="flex flex-wrap justify-center gap-8 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-primary" />
-            <span>Auditorias Completas</span>
+        {/* Stats Line */}
+        <div className="flex flex-wrap gap-8 mb-12 border-t border-b border-foreground py-6">
+          <div>
+            <div className="text-sm text-foreground/60 font-mono">SERVICIOS ACTIVOS</div>
+            <div className="text-2xl text-foreground font-bold font-mono">6+</div>
           </div>
-          <div className="flex items-center gap-2">
-            <Server className="w-5 h-5 text-primary" />
-            <span>Infraestructura Segura</span>
+          <div>
+            <div className="text-sm text-foreground/60 font-mono">AUDITORÍAS COMPLETADAS</div>
+            <div className="text-2xl text-foreground font-bold font-mono">50+</div>
           </div>
-          <div className="flex items-center gap-2">
-            <Eye className="w-5 h-5 text-primary" />
-            <span>Monitoreo Continuo</span>
+          <div>
+            <div className="text-sm text-foreground/60 font-mono">VULNERABILIDADES DESCUBIERTAS</div>
+            <div className="text-2xl text-foreground font-bold font-mono">200+</div>
           </div>
+        </div>
+
+        {/* CTA Buttons */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          <Link
+            href="#contacto"
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-foreground text-background font-bold font-mono border border-foreground hover:opacity-80 transition-opacity"
+          >
+            <Shield size={20} />
+            SOLICITAR AUDITORÍA
+            <ArrowRight size={20} />
+          </Link>
+          <Link
+            href="#riesgos"
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-background text-foreground border border-foreground font-bold font-mono hover:bg-foreground hover:text-background transition-all"
+          >
+            EVALUAR RIESGOS
+          </Link>
         </div>
       </div>
     </section>
-  )
+  );
 }
 
 export function TrustedBySection() {
-  const companies = [
-    "TechCorp",
-    "DataSafe",
-    "InnovatePyme",
-    "SecureNet",
-    "CloudFirst"
-  ]
+  const companies = ['TechCorp', 'DataSafe', 'InnovatePyme', 'SecureNet', 'CloudFirst'];
 
   return (
-    <section className="px-6 lg:px-12 py-16 border-t border-border">
-      <div className="max-w-6xl mx-auto text-center">
-        <p className="text-muted-foreground text-sm uppercase tracking-wider mb-8">
-          Empresas que confian en nuestra experiencia
+    <section className="px-4 sm:px-6 lg:px-8 py-16 border-t border-foreground bg-background">
+      <div className="max-w-7xl mx-auto text-center">
+        <p className="text-foreground/60 text-sm uppercase tracking-widest font-mono mb-8">
+          EMPRESAS QUE CONFÍAN EN CIPHER.AR
         </p>
         <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16">
           {companies.map((company, i) => (
-            <div 
-              key={i} 
-              className="text-muted-foreground/50 font-medium text-lg hover:text-muted-foreground transition-colors"
-            >
+            <div key={i} className="text-foreground/40 font-mono text-lg hover:text-foreground/70 transition-colors">
               {company}
             </div>
           ))}
         </div>
       </div>
     </section>
-  )
+  );
 }

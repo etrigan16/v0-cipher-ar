@@ -1,119 +1,76 @@
-import { ArrowRight, Wifi, Server, Shield, Lock } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import Link from "next/link"
-
-const caseStudies = [
+const cases = [
   {
-    icon: Wifi,
-    category: "Seguridad de Red",
-    title: "Segmentacion de Red WiFi Empresarial",
-    description: "Implementacion de redes separadas para empleados e invitados, con diferenciacion de recursos y politicas de acceso.",
-    results: ["Aislamiento completo de trafico", "Control de ancho de banda", "Acceso seguro a recursos internos"],
-    tags: ["WiFi", "Segmentacion", "VLAN"]
+    title: 'RED WIFI EMPRESARIAL CON SEGMENTACIÓN',
+    scenario: 'PyME con 30 empleados sin controles de acceso WiFi',
+    problem: 'Invitados y empleados en la misma red, acceso a datos sensibles sin autenticación.',
+    solution: 'Implementamos WiFi dual: red corporativa con WPA3 y VLAN segura para invitados, MFA en accesos administrativos.',
+    result: '100% aislamiento de tráfico, auditorías sin hallazgos críticos.',
   },
   {
-    icon: Server,
-    category: "Infraestructura",
-    title: "Hardening de Servidores Windows/Linux",
-    description: "Proceso de fortalecimiento de servidores criticos, eliminando vulnerabilidades y configurando politicas de seguridad.",
-    results: ["Reduccion del 85% de superficie de ataque", "Cumplimiento de estandares CIS", "Monitoreo continuo"],
-    tags: ["Hardening", "Servidores", "CIS"]
+    title: 'HARDENING DE SERVIDORES',
+    scenario: 'Empresa con servidor Windows sin actualizar desde 2020',
+    problem: 'Vulnerabilidades conocidas explotables, sin firewall local, puertos innecesarios abiertos.',
+    solution: 'Auditoría de configuración, cierre de puertos, hardening de SO, implementación de Windows Defender con exclusiones mínimas.',
+    result: 'Reducción del 95% de superficie de ataque, cumplimiento de estándares de seguridad.',
   },
   {
-    icon: Shield,
-    category: "Auditoria",
-    title: "Analisis de Vulnerabilidades en PyME",
-    description: "Evaluacion completa de seguridad para una empresa de 50 empleados, identificando riesgos criticos.",
-    results: ["12 vulnerabilidades criticas detectadas", "Plan de remediacion priorizado", "Capacitacion del personal"],
-    tags: ["Auditoria", "Vulnerabilidades", "PyME"]
+    title: 'ANÁLISIS DE VULNERABILIDADES CRÍTICAS',
+    scenario: 'Aplicación web interna expuesta a internet sin validación',
+    problem: 'SQL injection, XSS, ausencia de CORS, credenciales hardcodeadas en código.',
+    solution: 'Pruebas de penetración, reporte detallado con PoC, implementación de WAF y validación de entradas.',
+    result: '5 vulnerabilidades críticas corregidas, aplicación deployable en producción segura.',
   },
   {
-    icon: Lock,
-    category: "Proteccion de Datos",
-    title: "Implementacion de Cifrado End-to-End",
-    description: "Despliegue de solucion de cifrado para proteger datos sensibles en transito y en reposo.",
-    results: ["Cifrado AES-256 implementado", "Gestion centralizada de claves", "Cumplimiento GDPR"],
-    tags: ["Cifrado", "Datos", "GDPR"]
-  }
-]
+    title: 'CIFRADO Y BACKUP SEGURO',
+    scenario: 'Empresa sin estrategia de backup, datos en servidores sin encriptar',
+    problem: 'Riesgo total de pérdida de datos por ransomware o fallo hardware, cumplimiento incorrecto de RGPD.',
+    solution: 'Implementación de BitLocker en servidores, backup automatizado con encriptación AES-256, plan de disaster recovery.',
+    result: 'RPO de 4 horas, RTO de 2 horas, cumplimiento total de normativa de datos.',
+  },
+];
 
 export function CaseStudiesSection() {
   return (
-    <section id="casos" className="px-6 lg:px-12 py-20 lg:py-28 border-t border-border bg-card">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-16">
-          <p className="text-primary text-sm font-medium uppercase tracking-wider mb-3">
-            Casos de Estudio
-          </p>
-          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4 text-balance">
-            Proyectos reales, resultados medibles
-          </h2>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto text-pretty">
-            Explora como hemos ayudado a empresas como la tuya a fortalecer su postura de seguridad.
+    <section id="casos" className="px-4 sm:px-6 lg:px-8 py-20 bg-background border-b border-foreground">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-16">
+          <h2 className="text-4xl sm:text-5xl font-bold text-foreground font-mono mb-4">CASOS DE ESTUDIO</h2>
+          <div className="w-16 h-1 bg-foreground mb-6"></div>
+          <p className="text-lg text-foreground/70 font-mono max-w-2xl">
+            Ejemplos reales de cómo identificamos y corregimos vulnerabilidades en empresas como la tuya.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          {caseStudies.map((study, index) => (
-            <article 
-              key={index}
-              className="group bg-background border border-border rounded-lg p-6 hover:border-primary/50 transition-colors"
-            >
-              <div className="flex items-start gap-4 mb-4">
-                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <study.icon className="w-6 h-6 text-primary" />
-                </div>
+        <div className="space-y-6">
+          {cases.map((caseItem, i) => (
+            <div key={i} className="border border-foreground p-8 bg-background hover:bg-foreground hover:text-background transition-all">
+              <h3 className="text-xl font-bold font-mono text-foreground hover:text-background mb-4">{caseItem.title}</h3>
+
+              <div className="space-y-3 text-sm">
                 <div>
-                  <p className="text-xs text-primary font-medium uppercase tracking-wider mb-1">
-                    {study.category}
-                  </p>
-                  <h3 className="text-lg font-semibold text-foreground">
-                    {study.title}
-                  </h3>
+                  <span className="font-mono text-foreground/60 hover:text-background/60">ESCENARIO:</span>
+                  <p className="text-foreground/80 hover:text-background/80">{caseItem.scenario}</p>
+                </div>
+
+                <div>
+                  <span className="font-mono text-foreground/60 hover:text-background/60">PROBLEMA:</span>
+                  <p className="text-foreground/80 hover:text-background/80">{caseItem.problem}</p>
+                </div>
+
+                <div>
+                  <span className="font-mono text-foreground/60 hover:text-background/60">SOLUCIÓN:</span>
+                  <p className="text-foreground/80 hover:text-background/80">{caseItem.solution}</p>
+                </div>
+
+                <div>
+                  <span className="font-mono text-foreground/60 hover:text-background/60">RESULTADO:</span>
+                  <p className="text-foreground font-bold hover:text-background">{caseItem.result}</p>
                 </div>
               </div>
-
-              <p className="text-muted-foreground text-sm mb-4 leading-relaxed">
-                {study.description}
-              </p>
-
-              <div className="mb-4">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                  Resultados
-                </p>
-                <ul className="space-y-1.5">
-                  {study.results.map((result, i) => (
-                    <li key={i} className="flex items-center gap-2 text-sm text-foreground">
-                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                      {result}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                {study.tags.map((tag, i) => (
-                  <span 
-                    key={i}
-                    className="px-2 py-1 text-xs rounded bg-secondary text-muted-foreground"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </article>
+            </div>
           ))}
-        </div>
-
-        <div className="text-center mt-12">
-          <Button variant="outline" asChild className="border-border text-foreground hover:bg-background">
-            <Link href="/blog">
-              Ver todos los casos
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Link>
-          </Button>
         </div>
       </div>
     </section>
-  )
+  );
 }

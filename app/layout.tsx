@@ -1,14 +1,13 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { JetBrains_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
+const _jetbrainsMono = JetBrains_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'Guillermo A. Fernandez | Ciberseguridad para PyMEs',
-  description: 'Servicios profesionales de ciberseguridad, auditorías de seguridad informática y protección de infraestructura para pequeñas y medianas empresas.',
+  title: 'Cipher.ar | Ciberseguridad Táctica para PyMEs',
+  description: 'Auditorías de seguridad, análisis de riesgos, hardening de infraestructura. Soluciones de ciberseguridad profesionales para empresas que toman en serio su protección digital.',
   generator: 'v0.app',
   icons: {
     icon: [
@@ -36,7 +35,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className="dark bg-background">
-      <body className="font-sans antialiased bg-background text-foreground">
+      <body className="font-mono antialiased bg-background text-foreground">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>

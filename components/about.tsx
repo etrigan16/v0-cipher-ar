@@ -1,151 +1,97 @@
-import { Award, Users, Clock, Target } from "lucide-react"
-
-const stats = [
-  { icon: Award, value: "10+", label: "Anos de experiencia" },
-  { icon: Users, value: "50+", label: "Clientes protegidos" },
-  { icon: Clock, value: "24/7", label: "Monitoreo disponible" },
-  { icon: Target, value: "100%", label: "Compromiso" }
-]
+import { CheckCircle } from 'lucide-react';
 
 const values = [
   {
-    title: "Integridad",
-    description: "Actuamos con honestidad y transparencia en cada proyecto, manteniendo la confidencialidad de tu informacion."
+    title: 'TRANSPARENCIA',
+    description: 'Reportes claros, métricas reales, sin suavizar hallazgos críticos.',
   },
   {
-    title: "Excelencia",
-    description: "Buscamos la mejora continua y aplicamos las mejores practicas de la industria en cada solucion."
+    title: 'EFECTIVIDAD',
+    description: 'Soluciones implementables que se adaptan a tu presupuesto y operaciones.',
   },
   {
-    title: "Compromiso",
-    description: "Tu seguridad es nuestra prioridad. Nos involucramos profundamente en cada proyecto hasta alcanzar los objetivos."
-  }
-]
+    title: 'CONTINUIDAD',
+    description: 'Acompañamiento post-auditoría en la implementación y validación de controles.',
+  },
+  {
+    title: 'ÉTICA ESTRICTA',
+    description: 'Confidencialidad absoluta y responsabilidad en todo hallazgo descubierto.',
+  },
+];
+
+const stats = [
+  { label: 'AÑOS DE EXPERIENCIA', value: '10+' },
+  { label: 'EMPRESAS PROTEGIDAS', value: '50+' },
+  { label: 'AUDITORÍAS COMPLETADAS', value: '100+' },
+  { label: 'VULNERABILIDADES IDENTIFICADAS', value: '500+' },
+];
 
 export function AboutSection() {
   return (
-    <section id="nosotros" className="px-6 lg:px-12 py-20 lg:py-28 border-t border-border">
-      <div className="max-w-6xl mx-auto">
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-          {/* Content */}
-          <div>
-            <p className="text-primary text-sm font-medium uppercase tracking-wider mb-3">
-              Sobre Nosotros
-            </p>
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-6 text-balance">
-              Expertos en proteger lo que mas importa: tu negocio
-            </h2>
-            <div className="space-y-4 text-muted-foreground leading-relaxed">
-              <p>
-                Con mas de una decada de experiencia en ciberseguridad, nos especializamos en 
-                proteger pequenas y medianas empresas de las amenazas digitales que enfrentan hoy.
-              </p>
-              <p>
-                Entendemos que cada empresa es unica. Por eso, no ofrecemos soluciones genericas. 
-                Analizamos tu infraestructura, identificamos riesgos especificos y disenamos 
-                estrategias de seguridad que se adaptan a tu presupuesto y necesidades.
-              </p>
-              <p>
-                Nuestro enfoque combina tecnologia de vanguardia con un profundo conocimiento 
-                del panorama de amenazas actual, garantizando que tu empresa este preparada 
-                para enfrentar cualquier desafio de seguridad.
-              </p>
-            </div>
-          </div>
+    <section id="sobre" className="px-4 sm:px-6 lg:px-8 py-20 bg-background border-b border-foreground">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-16">
+          <h2 className="text-4xl sm:text-5xl font-bold text-foreground font-mono mb-4">SOBRE CIPHER.AR</h2>
+          <div className="w-16 h-1 bg-foreground mb-6"></div>
+        </div>
 
-          {/* Values */}
-          <div className="space-y-6">
-            {values.map((value, index) => (
-              <div 
-                key={index}
-                className="bg-card border border-border rounded-lg p-6"
-              >
-                <h3 className="text-lg font-semibold text-foreground mb-2">
-                  {value.title}
-                </h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">
-                  {value.description}
-                </p>
+        {/* Mission Statement */}
+        <div className="mb-20 pb-12 border-b border-foreground">
+          <p className="text-xl font-mono text-foreground/80 max-w-4xl leading-relaxed">
+            Cipher.ar existe para dar a las PyMEs las herramientas y conocimiento necesarios para defenderse de amenazas digitales reales.
+            No vendemos miedo ni soluciones genéricas. Hacemos auditorías profundas y entregamos planes de acción implementables.
+            Con más de una década de experiencia, protegemos infraestructuras críticas con métodos comprobados y transparencia absoluta.
+          </p>
+        </div>
+
+        {/* Values Grid */}
+        <div className="mb-20">
+          <h3 className="text-2xl font-bold text-foreground font-mono mb-8">VALORES FUNDAMENTALES</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {values.map((value, i) => (
+              <div key={i} className="border border-foreground p-6 bg-background hover:bg-foreground hover:text-background transition-all">
+                <div className="flex items-start gap-3 mb-3">
+                  <CheckCircle className="w-6 h-6 flex-shrink-0 mt-0" />
+                  <h4 className="text-lg font-bold font-mono">{value.title}</h4>
+                </div>
+                <p className="text-foreground/70 hover:text-background/80 text-sm leading-relaxed">{value.description}</p>
               </div>
             ))}
           </div>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-16 pt-16 border-t border-border">
-          {stats.map((stat, index) => (
-            <div key={index} className="text-center">
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                <stat.icon className="w-6 h-6 text-primary" />
+        <div>
+          <h3 className="text-2xl font-bold text-foreground font-mono mb-8">NÚMEROS QUE HABLAN</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 border border-foreground p-8 bg-background">
+            {stats.map((stat, i) => (
+              <div key={i} className="text-center border-r border-foreground/20 last:border-r-0">
+                <div className="text-3xl font-bold text-foreground font-mono mb-2">{stat.value}</div>
+                <div className="text-xs text-foreground/60 font-mono uppercase tracking-widest">{stat.label}</div>
               </div>
-              <div className="text-3xl font-bold text-foreground mb-1">
-                {stat.value}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                {stat.label}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </section>
-  )
+  );
 }
-
-interface TeamMember {
-  name: string
-  role: string
-  bio: string
-}
-
-const teamMembers: TeamMember[] = [
-  {
-    name: "Guillermo A. Fernandez",
-    role: "Director de Seguridad",
-    bio: "Especialista en seguridad de redes con mas de 10 anos de experiencia protegiendo infraestructuras criticas."
-  }
-]
 
 export function TeamSection() {
   return (
-    <section className="px-6 lg:px-12 py-20 lg:py-28 border-t border-border bg-card">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-16">
-          <p className="text-primary text-sm font-medium uppercase tracking-wider mb-3">
-            Nuestro Equipo
+    <section className="px-4 sm:px-6 lg:px-8 py-20 bg-background border-b border-foreground">
+      <div className="max-w-7xl mx-auto">
+        <h3 className="text-2xl font-bold text-foreground font-mono mb-8">EQUIPO</h3>
+        <div className="border border-foreground p-8 bg-background">
+          <h4 className="text-xl font-bold font-mono text-foreground mb-2">Guillermo A. Fernández</h4>
+          <p className="text-sm text-foreground/60 font-mono uppercase tracking-widest mb-4">Founder & Security Architect</p>
+          <p className="text-foreground/70 leading-relaxed">
+            Especialista en ciberseguridad con 10+ años auditando infraestructuras críticas. Experto en análisis de riesgos,
+            respuesta a incidentes y diseño de arquitecturas seguras. Certificado en seguridad ofensiva y defensiva,
+            ha protegido empresas de todos los tamaños contra amenazas reales y emergentes.
           </p>
-          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4 text-balance">
-            Profesionales comprometidos con tu seguridad
-          </h2>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Un equipo de expertos dedicados a proteger tu empresa.
-          </p>
-        </div>
-
-        <div className="flex justify-center">
-          {teamMembers.map((member, index) => (
-            <div 
-              key={index}
-              className="bg-background border border-border rounded-lg p-8 max-w-md text-center"
-            >
-              <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
-                <span className="text-3xl font-bold text-primary">
-                  {member.name.split(' ').map(n => n[0]).join('')}
-                </span>
-              </div>
-              <h3 className="text-xl font-semibold text-foreground mb-1">
-                {member.name}
-              </h3>
-              <p className="text-primary text-sm mb-4">
-                {member.role}
-              </p>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                {member.bio}
-              </p>
-            </div>
-          ))}
         </div>
       </div>
     </section>
-  )
+  );
 }

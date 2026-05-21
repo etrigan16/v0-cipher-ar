@@ -1,71 +1,44 @@
-import { Quote } from "lucide-react"
-
 const testimonials = [
   {
-    quote: "Despues de la auditoria descubrimos vulnerabilidades que no sabiamos que existian. La implementacion fue rapida y ahora dormimos mas tranquilos sabiendo que nuestra informacion esta protegida.",
-    author: "Carlos Martinez",
-    role: "Director de TI",
-    company: "Distribuidora Central"
+    name: 'Juan Pérez',
+    company: 'Tech Solutions SA',
+    role: 'Director de IT',
+    text: 'La auditoría de Cipher.ar identificó vulnerabilidades críticas que no habíamos detectado. El equipo fue profesional, transparente y entregó un plan implementable. Nuestras defensas mejoraron significativamente.',
   },
   {
-    quote: "El equipo entendio perfectamente nuestras limitaciones de presupuesto y nos propuso soluciones efectivas sin comprometer la seguridad. Excelente relacion calidad-precio.",
-    author: "Ana Rodriguez",
-    role: "Gerente General",
-    company: "Servicios Financieros SR"
+    name: 'María González',
+    company: 'Marketing Digital Pro',
+    role: 'Gerente General',
+    text: 'Después del ataque ransomware, Cipher.ar nos ayudó a recuperarnos y fortalecer toda nuestra infraestructura. Ahora tenemos monitoreo 24/7. Pueden confiar en ellos.',
   },
   {
-    quote: "La segmentacion de nuestra red WiFi fue un cambio fundamental. Ahora nuestros visitantes tienen acceso a internet sin comprometer nuestros recursos internos.",
-    author: "Miguel Torres",
-    role: "Administrador de Sistemas",
-    company: "Consultora Empresarial MT"
-  }
-]
+    name: 'Carlos López',
+    company: 'E-commerce Latam',
+    role: 'CTO',
+    text: 'El hardening de nuestros servidores y la implementación de cifrado de datos fue impecable. Cumplimos con GDPR sin complicaciones. El soporte post-implementación es excelente.',
+  },
+];
 
 export function TestimonialsSection() {
   return (
-    <section className="px-6 lg:px-12 py-20 lg:py-28 border-t border-border bg-card">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-12">
-          <p className="text-primary text-sm font-medium uppercase tracking-wider mb-3">
-            Testimonios
-          </p>
-          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4 text-balance">
-            Lo que dicen nuestros clientes
-          </h2>
-          <p className="text-muted-foreground text-lg">
-            Empresas que confiaron en nosotros y mejoraron su seguridad.
-          </p>
-        </div>
+    <section className="px-4 sm:px-6 lg:px-8 py-20 bg-background border-b border-foreground">
+      <div className="max-w-7xl mx-auto">
+        <h2 className="text-4xl sm:text-5xl font-bold text-foreground font-mono mb-4">TESTIMONIOS</h2>
+        <div className="w-16 h-1 bg-foreground mb-12"></div>
 
-        <div className="grid md:grid-cols-3 gap-6">
-          {testimonials.map((testimonial, index) => (
-            <div 
-              key={index}
-              className="bg-background border border-border rounded-lg p-6 flex flex-col"
-            >
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-                <Quote className="w-5 h-5 text-primary" />
-              </div>
-              
-              <blockquote className="text-foreground leading-relaxed mb-6 flex-grow">
-                &ldquo;{testimonial.quote}&rdquo;
-              </blockquote>
-              
-              <div className="pt-4 border-t border-border">
-                <p className="font-medium text-foreground">
-                  {testimonial.author}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {testimonial.role}
-                </p>
-                <p className="text-sm text-primary">
-                  {testimonial.company}
-                </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {testimonials.map((testimonial, i) => (
+            <div key={i} className="border border-foreground p-8 bg-background hover:bg-foreground hover:text-background transition-all">
+              <p className="text-sm mb-6 leading-relaxed italic">"{testimonial.text}"</p>
+              <div className="border-t border-foreground/20 hover:border-background/20 pt-4">
+                <p className="font-bold font-mono text-foreground hover:text-background">{testimonial.name}</p>
+                <p className="text-sm text-foreground/60 hover:text-background/60 font-mono">{testimonial.role}</p>
+                <p className="text-sm text-foreground/60 hover:text-background/60">{testimonial.company}</p>
               </div>
             </div>
           ))}
         </div>
       </div>
     </section>
-  )
+  );
 }
