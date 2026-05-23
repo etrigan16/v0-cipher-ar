@@ -21,7 +21,7 @@ const testimonials = [
 
 export function TestimonialsSection() {
   return (
-    <section className="px-4 sm:px-6 lg:px-8 py-20 bg-background border-b border-foreground">
+    <section className="px-4 sm:px-6 lg:px-8 py-20 bg-surface-3">
       <div className="max-w-7xl mx-auto">
         <h2 className="text-4xl sm:text-5xl font-bold text-foreground font-mono mb-4">TESTIMONIOS</h2>
         <div className="w-16 h-1 bg-foreground mb-12"></div>

@@ -29,7 +29,7 @@ const reports = [
 
 export function IntelligenceSection() {
   return (
-    <section id="intelligence" className="px-4 sm:px-6 lg:px-8 py-20 bg-card border-b border-border">
+    <section id="intelligence" className="px-4 sm:px-6 lg:px-8 py-20 bg-surface-1">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-12">
@@ -49,7 +49,7 @@ export function IntelligenceSection() {
             return (
               <article
                 key={i}
-                className="bg-background p-6 border border-border hover:border-primary transition-colors group cursor-pointer"
+                className="bg-surface-2 p-6 border border-border hover:border-primary transition-colors group cursor-pointer"
               >
                 {/* Meta */}
                 <div className="flex items-center justify-between mb-4">

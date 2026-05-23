@@ -38,7 +38,7 @@ const pillars = [
 
 export function ServicesSection() {
   return (
-    <section id="soluciones" className="px-4 sm:px-6 lg:px-8 py-20 bg-background border-b border-border">
+    <section id="soluciones" className="px-4 sm:px-6 lg:px-8 py-20 bg-surface-3">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-16">
@@ -58,7 +58,7 @@ export function ServicesSection() {
             return (
               <div
                 key={pillar.number}
-                className="bg-background p-8 border border-border hover:border-primary transition-colors group"
+                className="bg-surface-1 p-8 border border-border hover:border-primary transition-colors group"
               >
                 {/* Pillar Header */}
                 <div className="flex items-start justify-between mb-6">

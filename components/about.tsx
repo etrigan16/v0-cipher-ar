@@ -28,7 +28,7 @@ const stats = [
 
 export function AboutSection() {
   return (
-    <section id="sobre" className="px-4 sm:px-6 lg:px-8 py-20 bg-background border-b border-foreground">
+    <section id="sobre" className="px-4 sm:px-6 lg:px-8 py-20 bg-surface-2">
       <div className="max-w-7xl mx-auto">
         <div className="mb-16">
           <h2 className="text-4xl sm:text-5xl font-bold text-foreground font-mono mb-4">SOBRE CIPHER.AR</h2>
@@ -79,7 +79,7 @@ export function AboutSection() {
 
 export function TeamSection() {
   return (
-    <section className="px-4 sm:px-6 lg:px-8 py-20 bg-background border-b border-foreground">
+    <section className="px-4 sm:px-6 lg:px-8 py-20 bg-surface-3">
       <div className="max-w-7xl mx-auto">
         <h3 className="text-2xl font-bold text-foreground font-mono mb-8">EQUIPO</h3>
         <div className="border border-foreground p-8 bg-background">

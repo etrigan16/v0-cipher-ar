@@ -10,7 +10,7 @@ const auditFeatures = [
 
 export function AuditExpressSection() {
   return (
-    <section id="audit-express" className="px-4 sm:px-6 lg:px-8 py-20 bg-background border-b border-border">
+    <section id="audit-express" className="px-4 sm:px-6 lg:px-8 py-20 bg-surface-3">
       <div className="max-w-7xl mx-auto">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left: Content */}
@@ -47,7 +47,7 @@ export function AuditExpressSection() {
           </div>
 
           {/* Right: Visual */}
-          <div className="border border-border bg-card p-6">
+          <div className="border border-border bg-surface-1 p-6">
             <div className="font-mono text-xs text-muted-foreground mb-4">// PROCESO AUDIT EXPRESS</div>
             <div className="space-y-4">
               {[

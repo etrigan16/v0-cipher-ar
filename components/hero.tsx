@@ -57,7 +57,7 @@ function TerminalSimulator() {
 
 export function HeroSection() {
   return (
-    <section className="pt-24 pb-16 px-4 sm:px-6 lg:px-8 bg-background border-b border-border">
+    <section className="pt-24 pb-16 px-4 sm:px-6 lg:px-8 hero-grid">
       <div className="max-w-7xl mx-auto">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left: Copy */}
@@ -102,7 +102,7 @@ export function HeroSection() {
 
 export function TrustedBySection() {
   return (
-    <section className="px-4 sm:px-6 lg:px-8 py-12 border-b border-border bg-background">
+    <section className="px-4 sm:px-6 lg:px-8 py-12 bg-surface-2">
       <div className="max-w-7xl mx-auto">
         <p className="font-mono text-xs text-muted-foreground uppercase tracking-widest mb-6 text-center">
           // INFRAESTRUCTURA Y DESARROLLO SEGURO PARA:

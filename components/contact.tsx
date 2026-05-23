@@ -29,7 +29,7 @@ export function ContactSection() {
   }
 
   return (
-    <section id="contacto" className="px-4 sm:px-6 lg:px-8 py-20 bg-card border-b border-border">
+    <section id="contacto" className="px-4 sm:px-6 lg:px-8 py-20 bg-surface-1">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="text-center mb-12">

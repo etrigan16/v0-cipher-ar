@@ -41,6 +41,10 @@
   --chart-5: oklch(0.5 0 0);
   /* Sin bordes redondeados - ángulos rígidos brutalistas */
   --radius: 0;
+  /* Superficies para separar secciones sin usar líneas divisorias */
+  --surface-1: oklch(0 0 0);       /* #000000 — negro absoluto */
+  --surface-2: oklch(0.055 0 0);   /* #0a0a0a — gris asfalto oscuro */
+  --surface-3: oklch(0.09 0 0);    /* #111111 — gris carbón medio */
   /* Sidebar */
   --sidebar: oklch(0 0 0);
   --sidebar-foreground: oklch(0.95 0 0);
@@ -51,6 +55,20 @@
   --sidebar-border: oklch(0.15 0 0);
   --sidebar-ring: oklch(0.85 0.25 155);
 }
+
+/* Rejilla táctica para el hero */
+.hero-grid {
+  background-color: var(--surface-1);
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* Clases de superficie para alternancia de secciones */
+.bg-surface-1 { background-color: var(--surface-1); }
+.bg-surface-2 { background-color: var(--surface-2); }
+.bg-surface-3 { background-color: var(--surface-3); }
 
 @theme inline {
   --font-sans: var(--font-inter), 'Inter', system-ui, sans-serif;
