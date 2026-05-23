@@ -56,33 +56,20 @@
   --sidebar-ring: oklch(0.85 0.25 155);
 }
 
-/* Rejilla táctica para el hero */
-.hero-grid {
-  background-color: var(--surface-1);
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 48px 48px;
-}
-
-/* Clases de superficie para alternancia de secciones */
-.bg-surface-1 { background-color: var(--surface-1); }
-.bg-surface-2 { background-color: var(--surface-2); }
-.bg-surface-3 { background-color: var(--surface-3); }
-
 @layer utilities {
+  /* Rejilla táctica para el hero - cuadrícula de líneas finas */
   .hero-grid {
-    @apply relative;
-    background-color: var(--surface-1);
+    background-color: #000000;
     background-image:
-      linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+      linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
     background-size: 48px 48px;
   }
 
-  .bg-surface-1 { @apply bg-[#000000]; }
-  .bg-surface-2 { @apply bg-[#0a0a0a]; }
-  .bg-surface-3 { @apply bg-[#111111]; }
+  /* Superficies para alternancia de secciones sin líneas divisorias */
+  .bg-surface-1 { background-color: #000000; }
+  .bg-surface-2 { background-color: #0a0a0a; }
+  .bg-surface-3 { background-color: #111111; }
 }
 
 @theme inline {
@@ -124,6 +111,8 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
