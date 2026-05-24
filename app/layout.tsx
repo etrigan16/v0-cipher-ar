@@ -14,8 +14,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Cipher.ar | Infraestructura robusta. Software blindado.',
-  description: 'Consultoría táctica en ciberseguridad y redes. Diseñamos sistemas que no pueden permitirse fallar.',
+  title: 'Aukalabs | Infraestructura Indómita y Software Blindado',
+  description: 'Laboratorio táctico de infraestructura y seguridad. Construimos sistemas inquebrantables sin marketing vacío.',
   generator: 'v0.app',
   icons: {
     icon: [
