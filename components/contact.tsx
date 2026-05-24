@@ -54,12 +54,42 @@ export function ContactSection() {
     setFormData({ ...formData, challenge: value })
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
     if (formData.name && formData.email && formData.challenge && formData.description) {
-      setStatus("Solicitud recibida. Te contactaremos en menos de 24 horas.")
-      setFormData({ name: "", email: "", company: "", challenge: "", description: "" })
-      setTimeout(() => setStatus(""), 5000)
+      setStatus("PROCESANDO INFORMACIÓN... ESTABLECIENDO CONEXIÓN CON EL SERVIDOR.")
+
+      try {
+        // Hacemos el disparo de red a nuestra Serverless Function
+        const response = await fetch("/api/send", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            nombre: formData.name,
+            email: formData.email,
+            empresa: formData.company || "No especificada",
+            desafio: formData.challenge,
+            descripcion: formData.description,
+          }),
+        })
+
+        if (response.ok) {
+          setStatus("SOLICITUD RECIBIDA CON ÉXITO. REVISANDO PARÁMETROS EN MENOS DE 24 HORAS.")
+          // Limpiamos el formulario una vez enviado con éxito
+          setFormData({ name: "", email: "", company: "", challenge: "", description: "" })
+        } else {
+          setStatus("ERROR CRÍTICO: El servidor rechazó la solicitud de envío.")
+        }
+      } catch (error) {
+        console.error("Fallo de red:", error)
+        setStatus("FALLO INTERNO DE CONECTIVIDAD: Intenta de nuevo más tarde.")
+      }
+
+      // Quitamos el cartel de estado después de 6 segundos
+      setTimeout(() => setStatus(""), 6000)
     }
   }
 
