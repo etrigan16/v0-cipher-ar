@@ -118,10 +118,10 @@ export function ContactSection() {
         <div className="flex items-center gap-2 mb-10 pb-8 border-b border-[#1a1a1a]">
           <Mail className="w-4 h-4 text-muted-foreground" />
           <a
-            href="mailto:contact@cipher.ar"
+            href="mailto:contact@aukalabs.com"
             className="font-mono text-sm text-muted-foreground hover:text-primary transition-colors"
           >
-            contact@cipher.ar
+            contact@aukalabs.com
           </a>
         </div>
 

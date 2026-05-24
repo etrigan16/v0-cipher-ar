@@ -17,10 +17,15 @@ export function Navbar() {
     <nav className="fixed top-0 w-full bg-background border-b border-border z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <Link href="#" className="font-mono text-xl font-bold tracking-wider">
-            <span className="text-foreground">CIPHER</span>
-            <span className="text-primary">.AR</span>
+          {/* Logo — AUKALABS: K central como eje simétrico, estilo CLI */}
+          <Link href="#" className="flex items-center gap-0 font-mono text-xl font-bold tracking-widest select-none">
+            <span className="text-foreground">AU</span>
+            <span className="text-primary relative">
+              K
+              <span className="absolute -bottom-0.5 left-0 w-full h-px bg-primary opacity-60" />
+            </span>
+            <span className="text-foreground">ALABS</span>
+            <span className="text-primary text-xs ml-1 opacity-70 font-normal">_</span>
           </Link>
 
           {/* Desktop Navigation */}

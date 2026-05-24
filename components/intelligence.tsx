@@ -33,7 +33,7 @@ export function IntelligenceSection() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-12">
-          <p className="font-mono text-sm text-primary mb-2">// CIPHER INTELLIGENCE</p>
+          <p className="font-mono text-sm text-primary mb-2">// AUKA INTELLIGENCE</p>
           <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
             Repositorio de inteligencia técnica
           </h2>

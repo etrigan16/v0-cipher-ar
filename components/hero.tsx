@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { ArrowRight, Terminal } from "lucide-react"
 
 const terminalLines = [
-  { text: "$ cipher --audit --target=infrastructure", delay: 0 },
+  { text: "$ auka --audit --target=infrastructure", delay: 0 },
   { text: "[SCAN] Analyzing network topology...", delay: 800 },
   { text: "[SCAN] Checking firewall rules...", delay: 1600 },
   { text: "[VULN] Found 3 critical vulnerabilities", delay: 2400 },
@@ -39,7 +39,7 @@ function TerminalSimulator() {
           <div className="w-3 h-3 bg-primary/50"></div>
           <div className="w-3 h-3 bg-primary"></div>
         </div>
-        <span className="text-muted-foreground text-xs">cipher@secure:~</span>
+        <span className="text-muted-foreground text-xs">aukalabs@secure:~</span>
       </div>
       <div className="space-y-1 min-h-[180px]">
         {terminalLines.slice(0, visibleLines).map((line, index) => (
@@ -63,13 +63,21 @@ export function HeroSection() {
           {/* Left: Copy */}
           <div>
             <p className="font-mono text-sm text-primary mb-4 tracking-wider">
-              // CIPHER.AR — CONSULTORÍA TÁCTICA
+              // AUKALABS — LABORATORIO TÁCTICO
             </p>
+
+            {/*
+              VARIACIÓN 2 (comentada):
+              "Infraestructura que no negocia. Código que no se rinde."
+
+              VARIACIÓN 3 (comentada):
+              "El perímetro no es un firewall. Es la forma en que construimos cada línea."
+            */}
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-tight mb-6 text-balance">
-              Diseñamos sistemas que no pueden permitirse fallar.
+              Sistemas estables para entornos que no admiten caídas.
             </h1>
             <p className="text-lg text-muted-foreground mb-8 leading-relaxed max-w-xl">
-              Infraestructura robusta. Software blindado. Consultoría táctica en ciberseguridad y redes para empresas que toman en serio su protección digital.
+              Infraestructura robusta. Software blindado. Un laboratorio táctico que construye sin marketing vacío para empresas que toman en serio su arquitectura digital.
             </p>
             
             {/* CTA Buttons */}
