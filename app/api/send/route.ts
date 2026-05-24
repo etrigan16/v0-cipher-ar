@@ -25,7 +25,7 @@ export async function POST(request: Request) {
 
     const data = await resend.emails.send({
       from: 'Cipher.ar <contacto@cipher.ar>', // Tu dominio verificado en Resend
-      to: 'tu-gmail-donde-recibis@gmail.com', // Poné acá tu Gmail real donde querés la alerta
+      to: 'guillermofernandez16@gmail.com', // Poné acá tu Gmail real donde querés la alerta
       subject: `🚨 NUEVA CONSULTA TÁCTICA: ${empresa}`,
       html: `
         <div style="font-family:sans-serif; background:#000; color:#fff; padding:20px; border:1px solid #1a1a1a;">
