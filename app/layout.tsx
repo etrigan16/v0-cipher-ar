@@ -14,8 +14,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Aukalabs | Infraestructura Indómita y Software Blindado',
-  description: 'Laboratorio táctico de infraestructura y seguridad. Construimos sistemas inquebrantables sin marketing vacío.',
+  title: 'Aukalabs | Infraestructura Estable y Software Blindado',
+  description: 'Laboratorio táctico de infraestructura y seguridad. Construimos sistemas estables sin marketing vacío.',
   generator: 'v0.app',
   icons: {
     icon: [

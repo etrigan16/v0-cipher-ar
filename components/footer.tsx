@@ -18,7 +18,7 @@ export function Footer() {
               <span className="text-primary text-xs ml-1 opacity-70 font-normal">_</span>
             </Link>
             <p className="text-sm text-muted-foreground mt-4 max-w-sm">
-              Infraestructura indómita. Software blindado. Un laboratorio táctico anti-corporativo que construye sin marketing vacío.
+              Infraestructura estable. Software blindado. Un laboratorio táctico anti-corporativo que construye sin marketing vacío.
             </p>
             <p className="font-mono text-xs text-muted-foreground mt-4">
               contact@aukalabs.com

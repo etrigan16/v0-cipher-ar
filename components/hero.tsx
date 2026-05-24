@@ -74,7 +74,7 @@ export function HeroSection() {
               "El perímetro no es un firewall. Es la forma en que construimos cada línea."
             */}
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-tight mb-6 text-balance">
-              Sistemas indómitos para entornos que no admiten caídas.
+              Sistemas estables para entornos que no admiten caídas.
             </h1>
             <p className="text-lg text-muted-foreground mb-8 leading-relaxed max-w-xl">
               Infraestructura robusta. Software blindado. Un laboratorio táctico que construye sin marketing vacío para empresas que toman en serio su arquitectura digital.
