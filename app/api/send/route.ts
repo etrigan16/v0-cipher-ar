@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     const data = await resend.emails.send({
       from: 'Aukalabs <contacto@aukalabs.com>', // Tu dominio verificado en Resend
       to: 'guillermofernandez16@gmail.com', // Poné acá tu Gmail real donde querés la alerta
-      subject: `🚨 NUEVA CONSULTA TÁCTICA: ${empresa}`,
+      subject: `🚨 Nuevo Contacto desde Aukalabs: ${empresa}`,
       html: `
         <div style="font-family:sans-serif; background:#000; color:#fff; padding:20px; border:1px solid #1a1a1a;">
           <h2 style="color:#00ff99; border-bottom:1px solid #222; padding-bottom:10px;">// SOLICITUD DE AUDITORÍA</h2>
