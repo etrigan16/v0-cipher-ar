@@ -18,8 +18,8 @@ export const metadata: Metadata = {
   description: 'Laboratorio táctico de infraestructura y seguridad. Construimos sistemas estables sin marketing vacío.',
   generator: 'v0.app',
   icons: {
-    icon: '/favicon.jpg',
-    apple: '/favicon.jpg',
+    icon: '/favicon.svg',
+    apple: '/favicon.svg',
   },
 }
 
