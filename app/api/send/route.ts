@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+function getResend() {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) throw new Error("Missing RESEND_API_KEY");
+  return new Resend(key);
+}
 
 // 1. Le definimos a TypeScript una estructura estricta para los datos que llegan
 interface EmailRequestBody {
@@ -23,7 +27,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Faltan campos obligatorios' }, { status: 400 });
     }
 
-    const data = await resend.emails.send({
+    const data = await getResend().emails.send({
       from: 'Aukalabs <contacto@aukalabs.com>', // Tu dominio verificado en Resend
       to: 'guillermofernandez16@gmail.com', // Poné acá tu Gmail real donde querés la alerta
       subject: `🚨 Nuevo Contacto desde Aukalabs: ${empresa}`,

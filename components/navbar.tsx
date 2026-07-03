@@ -6,8 +6,11 @@ import { Menu, X } from "lucide-react"
 
 const navItems = [
   { href: "#soluciones", label: "Soluciones" },
+  { href: "#asm", label: "ASM" },
+  { href: "#phishing", label: "Phishing" },
   { href: "#intelligence", label: "Intelligence" },
   { href: "#audit-express", label: "Audit Express" },
+  { href: "#pricing", label: "Planes" },
 ]
 
 export function Navbar() {
@@ -45,6 +48,12 @@ export function Navbar() {
             >
               [Contacto]
             </a>
+            <a
+              href="/login"
+              className="font-mono text-sm text-muted-foreground hover:text-primary transition-colors"
+            >
+              [Login]
+            </a>
           </div>
 
           {/* Mobile Menu Button */}
@@ -76,6 +85,13 @@ export function Navbar() {
             >
               [Contacto]
             </a>
+            <Link
+              href="/login"
+              className="block px-4 py-3 font-mono text-sm text-muted-foreground border-b border-border hover:text-primary hover:bg-card transition-colors"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              [Login]
+            </Link>
           </div>
         )}
       </div>

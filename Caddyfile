@@ -1,0 +1,7 @@
+aukalabs.com {
+    reverse_proxy localhost:3000
+}
+
+api.aukalabs.com {
+    reverse_proxy backend:8000
+}

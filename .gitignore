@@ -9,6 +9,13 @@ next.user-config.*
 
 # Environment variables
 .env*.local
+backend/.env
+
+# Wiki
+segundo-cerebro/
+
+# npm lock (use pnpm)
+package-lock.json
 
 # Common ignores
 node_modules
