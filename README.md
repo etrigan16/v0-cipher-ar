@@ -1,35 +1,18 @@
-# v0-cipher-ar
+# Cipher AR — Attack Surface Scanner
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [v0](https://v0.app).
+Suite de ciberseguridad ofensiva para PYMES. Escaneo de superficie de ataque,
+descubrimiento de activos y risk scoring potenciado por IA.
 
-## Built with v0
+**Stack:** Next.js 14 + FastAPI (Python 3.11) + PostgreSQL 16 + Redis 7 + Docker
 
-This repository is linked to a [v0](https://v0.app) project. You can continue developing by visiting the link below -- start new chats to make changes, and v0 will push commits directly to this repo. Every merge to `main` will automatically deploy.
+**Componentes:**
+- Web app con Next.js 14 (App Router, Server Components)
+- API backend con FastAPI + SQLAlchemy + Pydantic
+- Escaneo de subdominios, fingerprinting y risk scoring
+- Enriquecimiento con IA (Groq/Ollama)
+- Dashboard con métricas en tiempo real
+- Despliegue con Docker Compose + Caddy TLS
 
-[Continue working on v0 →](https://v0.app/chat/projects/prj_dyiLDJAgc5oifXZjWF52utIuy00J)
+**Estado:** En desarrollo activo.
 
-## Getting Started
-
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-## Learn More
-
-To learn more, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-- [v0 Documentation](https://v0.app/docs) - learn about v0 and how to use it.
-
-<a href="https://v0.app/chat/api/kiro/clone/etrigan16/v0-cipher-ar" alt="Open in Kiro"><img src="https://pdgvvgmkdvyeydso.public.blob.vercel-storage.com/open%20in%20kiro.svg?sanitize=true" /></a>
+---
