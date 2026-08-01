@@ -3,7 +3,8 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/aukalabs"
-    secret_key: str = "change-me-in-production"
+    # Required — no default. The backend must not boot with a known secret.
+    secret_key: str
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 1440
 
