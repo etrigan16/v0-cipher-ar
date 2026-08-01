@@ -8,3 +8,9 @@ passlib[bcrypt]==1.7.4
 python-multipart==0.0.18
 pydantic[email-validation]==2.10.3
 pydantic-settings==2.7.0
+
+# Test dependencies (pytest harness; see backend/pytest.ini)
+pytest==9.1.1
+pytest-asyncio==1.4.0
+httpx==0.28.1
+aiosqlite==0.22.1
