@@ -27,9 +27,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Faltan campos obligatorios' }, { status: 400 });
     }
 
+    // Recipient comes from the environment; there is no fallback address.
+    // When CONTACT_EMAIL is unset no email is sent and the request fails (500).
+    const recipient = process.env.CONTACT_EMAIL;
+    if (!recipient) {
+      throw new Error("Missing CONTACT_EMAIL");
+    }
+
     const data = await getResend().emails.send({
       from: 'Aukalabs <contacto@aukalabs.com>', // Tu dominio verificado en Resend
-      to: 'guillermofernandez16@gmail.com', // Poné acá tu Gmail real donde querés la alerta
+      to: recipient,
       subject: `🚨 Nuevo Contacto desde Aukalabs: ${empresa}`,
       html: `
         <div style="font-family:sans-serif; background:#000; color:#fff; padding:20px; border:1px solid #1a1a1a;">
