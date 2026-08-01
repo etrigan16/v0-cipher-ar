@@ -43,20 +43,20 @@ export const api = {
     me: () => request<{ id: string; email: string; name: string }>("/auth/me"),
   },
   asm: {
-    list: () => request<{ assets: any[] }>("/asm/assets"),
+    list: () => request<{ assets: unknown[] }>("/asm/assets"),
     scan: (assetId: string) =>
       request<{ scan_id: string }>(`/asm/scan/${assetId}`, { method: "POST" }),
     results: (scanId: string) =>
-      request<{ findings: any[] }>(`/asm/results/${scanId}`),
+      request<{ findings: unknown[] }>(`/asm/results/${scanId}`),
   },
   phishing: {
-    campaigns: () => request<{ campaigns: any[] }>("/phishing/campaigns"),
-    createCampaign: (data: any) =>
+    campaigns: () => request<{ campaigns: unknown[] }>("/phishing/campaigns"),
+    createCampaign: (data: unknown) =>
       request<{ id: string }>("/phishing/campaigns", {
         method: "POST",
         body: JSON.stringify(data),
       }),
     results: (campaignId: string) =>
-      request<any>(`/phishing/campaigns/${campaignId}/results`),
+      request<unknown>(`/phishing/campaigns/${campaignId}/results`),
   },
 }

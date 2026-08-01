@@ -11,8 +11,10 @@ next.user-config.*
 .env*.local
 backend/.env
 
-# Wiki
+# Wiki (contexto privado del proyecto — no subir)
 segundo-cerebro/
+wiki/
+configs/agents/
 
 # npm lock (use pnpm)
 package-lock.json
@@ -21,3 +23,4 @@ package-lock.json
 node_modules
 .next/
 .DS_Store
+*.tsbuildinfo

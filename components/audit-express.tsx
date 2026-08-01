@@ -48,7 +48,7 @@ export function AuditExpressSection() {
 
           {/* Right: Visual */}
           <div className="border border-border bg-surface-1 p-6">
-            <div className="font-mono text-xs text-muted-foreground mb-4">// PROCESO AUDIT EXPRESS</div>
+            <div className="font-mono text-xs text-muted-foreground mb-4">{"// PROCESO AUDIT EXPRESS"}</div>
             <div className="space-y-4">
               {[
                 { step: "01", label: "INTAKE", desc: "Recopilación de información inicial" },
