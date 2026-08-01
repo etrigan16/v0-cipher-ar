@@ -29,7 +29,7 @@ export function TestimonialsSection() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {testimonials.map((testimonial, i) => (
             <div key={i} className="border border-foreground p-8 bg-background hover:bg-foreground hover:text-background transition-all">
-              <p className="text-sm mb-6 leading-relaxed italic">"{testimonial.text}"</p>
+              <p className="text-sm mb-6 leading-relaxed italic">{'"'}{testimonial.text}{'"'}</p>
               <div className="border-t border-foreground/20 hover:border-background/20 pt-4">
                 <p className="font-bold font-mono text-foreground hover:text-background">{testimonial.name}</p>
                 <p className="text-sm text-foreground/60 hover:text-background/60 font-mono">{testimonial.role}</p>

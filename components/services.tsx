@@ -42,7 +42,7 @@ export function ServicesSection() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-16">
-          <p className="font-mono text-sm text-primary mb-2">// SOLUCIONES</p>
+          <p className="font-mono text-sm text-primary mb-2">{"// SOLUCIONES"}</p>
           <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
             Tres pilares de protección
           </h2>

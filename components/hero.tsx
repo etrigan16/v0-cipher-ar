@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ArrowRight, Terminal } from "lucide-react"
+import { ArrowRight } from "lucide-react"
 
 const terminalLines = [
   { text: "$ auka --audit --target=infrastructure", delay: 0 },
@@ -63,7 +63,7 @@ export function HeroSection() {
           {/* Left: Copy */}
           <div>
             <p className="font-mono text-sm text-primary mb-4 tracking-wider">
-              // AUKALABS — LABORATORIO TÁCTICO
+              {"// AUKALABS — LABORATORIO TÁCTICO"}
             </p>
 
             {/*
@@ -113,7 +113,7 @@ export function TrustedBySection() {
     <section className="px-4 sm:px-6 lg:px-8 py-12 bg-surface-2">
       <div className="max-w-7xl mx-auto">
         <p className="font-mono text-xs text-muted-foreground uppercase tracking-widest mb-6 text-center">
-          // INFRAESTRUCTURA Y DESARROLLO SEGURO PARA:
+          {"// INFRAESTRUCTURA Y DESARROLLO SEGURO PARA:"}
         </p>
         <div className="flex flex-wrap justify-center items-center gap-6 md:gap-12">
           {["Startups & MVPs", "Infraestructura PyME", "Redes Distribuidas"].map((segment, i) => (

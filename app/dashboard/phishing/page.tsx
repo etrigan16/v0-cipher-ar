@@ -1,6 +1,6 @@
 "use client"
 
-import { Siren, Plus, Users } from "lucide-react"
+import { Siren, Plus } from "lucide-react"
 
 export default function PhishingPage() {
   return (

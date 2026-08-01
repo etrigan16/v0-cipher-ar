@@ -27,7 +27,7 @@ export function Footer() {
 
           {/* Links */}
           <div>
-            <h4 className="font-mono text-xs text-muted-foreground mb-4">// NAVEGACIÓN</h4>
+            <h4 className="font-mono text-xs text-muted-foreground mb-4">{"// NAVEGACIÓN"}</h4>
             <ul className="space-y-2">
               {[
                 { href: "#soluciones", label: "Soluciones" },
@@ -46,7 +46,7 @@ export function Footer() {
 
           {/* Legal */}
           <div>
-            <h4 className="font-mono text-xs text-muted-foreground mb-4">// LEGAL</h4>
+            <h4 className="font-mono text-xs text-muted-foreground mb-4">{"// LEGAL"}</h4>
             <ul className="space-y-2">
               {[
                 { href: "#", label: "Privacidad" },

@@ -103,7 +103,7 @@ export function ContactSection() {
         {/* Header */}
         <div className="mb-12">
           <p className="font-mono text-xs text-primary uppercase tracking-widest mb-3">
-            // CALIFICACIÓN DE PROYECTO
+            {"// CALIFICACIÓN DE PROYECTO"}
           </p>
           <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4 leading-tight">
             Cuéntanos tu desafío.<br />
@@ -232,7 +232,7 @@ export function ContactSection() {
 
           {status && (
             <p className="text-sm text-primary font-mono text-center border border-primary px-4 py-3">
-              // {status}
+              {`// ${status}`}
             </p>
           )}
 
