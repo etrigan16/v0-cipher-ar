@@ -31,7 +31,7 @@ async function request<T>(
 export const api = {
   auth: {
     login: (email: string, password: string) =>
-      request<{ access_token: string; token_type: string }>("/auth/login", {
+      request<{ access_token: string; token_type: string } | { partial_token: string; token_type: string; mfa_required: boolean }>("/auth/login", {
         method: "POST",
         body: JSON.stringify({ email, password }),
       }),
@@ -41,6 +41,27 @@ export const api = {
         body: JSON.stringify({ email, password, name }),
       }),
     me: () => request<{ id: string; email: string; name: string }>("/auth/me"),
+    mfa: {
+      setup: () =>
+        request<{ secret: string; provisioning_uri: string }>("/auth/mfa/setup", {
+          method: "POST",
+        }),
+      verify: (code: string) =>
+        request<{ detail: string }>("/auth/mfa/verify", {
+          method: "POST",
+          body: JSON.stringify({ code }),
+        }),
+      disable: (password: string) =>
+        request<{ detail: string }>("/auth/mfa/disable", {
+          method: "POST",
+          body: JSON.stringify({ password }),
+        }),
+      challenge: (partialToken: string, code: string) =>
+        request<{ access_token: string; token_type: string }>("/auth/mfa/challenge", {
+          method: "POST",
+          body: JSON.stringify({ partial_token: partialToken, code }),
+        }),
+    },
   },
   asm: {
     list: () => request<{ assets: unknown[] }>("/asm/assets"),
@@ -58,5 +79,12 @@ export const api = {
       }),
     results: (campaignId: string) =>
       request<unknown>(`/phishing/campaigns/${campaignId}/results`),
+  },
+  waitlist: {
+    submit: (email: string, company?: string) =>
+      request<{ id: string; email: string; company: string | null; created_at: string }>(
+        "/waitlist",
+        { method: "POST", body: JSON.stringify({ email, company }) },
+      ),
   },
 }
