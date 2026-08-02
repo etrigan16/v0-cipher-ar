@@ -39,3 +39,5 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    mfa_secret = Column(String, nullable=True, default=None)
+    mfa_enabled = Column(Boolean, default=False, server_default="0")
