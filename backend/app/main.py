@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routes import auth, asm, phishing
+from app.routes import auth, asm, phishing, waitlist, mfa
 from app.database import init_db
 
 app = FastAPI(title="Aukalabs API", version="0.1.0")
@@ -17,6 +17,8 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(asm.router)
 app.include_router(phishing.router)
+app.include_router(waitlist.router)
+app.include_router(mfa.router)
 
 
 @app.on_event("startup")

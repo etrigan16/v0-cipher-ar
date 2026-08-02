@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 from app.database import get_db
 from app.models.user import User
 from app.config import settings
+from app.utils.tokens import create_partial_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 security = HTTPBearer()
@@ -30,6 +31,12 @@ class LoginRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+class PartialTokenResponse(BaseModel):
+    partial_token: str
+    token_type: str = "bearer"
+    mfa_required: bool = True
 
 
 class UserResponse(BaseModel):
@@ -60,6 +67,13 @@ async def get_current_user(
         user_id = payload.get("sub")
     except JWTError:
         raise HTTPException(status_code=401, detail="Token inválido")
+
+    # Reject partial (MFA challenge) tokens — they are not session tokens.
+    if payload.get("mfa_challenge"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="MFA challenge required",
+        )
 
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
@@ -93,6 +107,10 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
 
     if not user or not pwd_context.verify(req.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Credenciales inválidas")
+
+    if user.mfa_enabled:
+        partial = create_partial_token(str(user.id))
+        return PartialTokenResponse(partial_token=partial)
 
     token = create_access_token(str(user.id))
     return TokenResponse(access_token=token)
