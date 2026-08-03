@@ -68,6 +68,13 @@ export const api = {
     results: (scanId: string) =>
       request<{ findings: unknown[] }>(`/asm/results/${scanId}`),
   },
+  waitlist: {
+    submit: (email: string, company?: string) =>
+      request<{ id: string; email: string }>("/api/v1/waitlist", {
+        method: "POST",
+        body: JSON.stringify({ email, company }),
+      }),
+  },
   phishing: {
     campaigns: () => request<{ campaigns: unknown[] }>("/phishing/campaigns"),
     createCampaign: (data: unknown) =>
