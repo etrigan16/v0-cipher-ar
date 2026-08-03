@@ -41,6 +41,25 @@ export const api = {
         body: JSON.stringify({ email, password, name }),
       }),
     me: () => request<{ id: string; email: string; name: string }>("/auth/me"),
+    mfa: {
+      setup: () => request<{ secret: string; uri: string }>("/auth/mfa/setup"),
+      verify: (code: string) =>
+        request<{ success: boolean }>("/auth/mfa/verify", {
+          method: "POST",
+          body: JSON.stringify({ code }),
+        }),
+      disable: (password: string) =>
+        request<{ success: boolean }>("/auth/mfa/disable", {
+          method: "POST",
+          body: JSON.stringify({ password }),
+        }),
+      challenge: (partialToken: string, code: string) =>
+        request<{ access_token: string; token_type: string }>("/auth/mfa/challenge", {
+          method: "POST",
+          body: JSON.stringify({ partial_token: partialToken, code }),
+          headers: { Authorization: `Bearer ${partialToken}` },
+        }),
+    },
   },
   asm: {
     list: () => request<{ assets: unknown[] }>("/asm/assets"),
