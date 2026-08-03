@@ -58,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const res = await api.auth.login(email, password)
 
     if ("mfa_required" in res && res.mfa_required) {
-      setMfaChallenge({ partialToken: res.partial_token, email })
+      setMfaChallenge({ partialToken: res.partial_token!, email })
       return { mfaRequired: true }
     }
 
