@@ -9,13 +9,25 @@ type User = {
   name: string
 }
 
+export type MfaChallenge = {
+  partialToken: string
+  email: string
+}
+
+export type LoginResult = {
+  mfaRequired: boolean
+}
+
 type AuthContextType = {
   user: User | null
   token: string | null
   loading: boolean
-  login: (email: string, password: string) => Promise<void>
+  mfaChallenge: MfaChallenge | null
+  login: (email: string, password: string) => Promise<LoginResult>
   register: (email: string, password: string, name: string) => Promise<void>
   logout: () => void
+  completeMfaChallenge: (code: string) => Promise<void>
+  clearMfaChallenge: () => void
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -24,6 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [mfaChallenge, setMfaChallenge] = useState<MfaChallenge | null>(null)
 
   useEffect(() => {
     const stored = localStorage.getItem("token")
@@ -41,12 +54,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string): Promise<LoginResult> => {
     const res = await api.auth.login(email, password)
-    localStorage.setItem("token", res.access_token)
-    setToken(res.access_token)
+
+    if ("mfa_required" in res && res.mfa_required) {
+      setMfaChallenge({ partialToken: res.partial_token, email })
+      return { mfaRequired: true }
+    }
+
+    localStorage.setItem("token", (res as { access_token: string }).access_token)
+    setToken((res as { access_token: string }).access_token)
     const me = await api.auth.me()
     setUser(me)
+    return { mfaRequired: false }
+  }, [])
+
+  const completeMfaChallenge = useCallback(async (code: string) => {
+    if (!mfaChallenge) throw new Error("No MFA challenge active")
+
+    const res = await api.auth.mfa.challenge(mfaChallenge.partialToken, code)
+    localStorage.setItem("token", res.access_token)
+    setToken(res.access_token)
+    setMfaChallenge(null)
+    const me = await api.auth.me()
+    setUser(me)
+  }, [mfaChallenge])
+
+  const clearMfaChallenge = useCallback(() => {
+    setMfaChallenge(null)
   }, [])
 
   const register = useCallback(async (email: string, password: string, name: string) => {
@@ -57,10 +92,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("token")
     setToken(null)
     setUser(null)
+    setMfaChallenge(null)
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, mfaChallenge, login, register, logout, completeMfaChallenge, clearMfaChallenge }}>
       {children}
     </AuthContext.Provider>
   )

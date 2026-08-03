@@ -6,6 +6,7 @@ import { AuditExpressSection } from "@/components/audit-express"
 import { AttackSurfaceSection } from "@/components/attack-surface"
 import { PhishingSection } from "@/components/phishing"
 import { PricingSection } from "@/components/pricing"
+import { WaitlistSection } from "@/components/waitlist"
 import { ContactSection } from "@/components/contact"
 import { Footer } from "@/components/footer"
 
@@ -21,6 +22,7 @@ export default function HomePage() {
       <AttackSurfaceSection />
       <PhishingSection />
       <PricingSection />
+      <WaitlistSection />
       <ContactSection />
       <Footer />
     </main>

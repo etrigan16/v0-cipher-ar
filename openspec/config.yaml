@@ -1,0 +1,37 @@
+# SDD Project Config — v0-cipher-ar
+schema: spec-driven
+
+context: |
+  Tech stack: Next.js 16.2.4 (App Router, RSC) + React 19 + TypeScript 5.7.3 + Tailwind CSS 4 + shadcn/ui (frontend); FastAPI 0.115.6 + SQLAlchemy 2.0 async + Pydantic 2 (backend, backend/); pnpm.
+  Architecture: monorepo layout — app/ + components/ + lib/ + hooks/ (Next.js), backend/app/ (FastAPI), docker-compose.yml + Caddyfile (backend + caddy), next.config.mjs rewrites /api/backend/*.
+  Product: Aukalabs — offensive cybersecurity SaaS for Argentine SMBs (Attack Surface Manager + Phishing Simulator). Docs in wiki/ (Spanish, gitignored); 12 ADRs in wiki/projects/aukalabs/tech-decisions.md (planning intent — repo code is truth).
+  Testing: vitest (pnpm test) + ESLint 9 (pnpm lint) + pytest backend suite (cd backend && pytest); strict TDD enabled (apply.tdd true). Type check: tsc --noEmit (strict). CI active (GitHub Actions workflow `quality` on push/PR to main).
+  Style: conventional commits (feat:/fix:), English code/artifacts, shadcn/ui new-york component conventions, @/* path alias.
+
+rules:
+  proposal:
+    - State the change intent, scope, and approach in one page
+    - Include rollback plan for risky changes
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+    - Delta specs: ADDED/MODIFIED/REMOVED/RENAMED sections only
+  design:
+    - Include sequence diagrams for complex flows
+    - Document architecture decisions with rationale
+    - Respect existing component conventions (shadcn/ui, components/, backend/app/)
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+  apply:
+    guidelines:
+      - Follow existing code patterns (lib/api.ts client, backend route modules)
+      - Do not commit secrets; use backend/.env.example for env vars
+    tdd: true
+    test_command: "pnpm test && cd backend && pytest"
+  verify:
+    test_command: "pnpm test && cd backend && pytest"
+    build_command: "pnpm build"
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas

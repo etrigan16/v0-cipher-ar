@@ -1,8 +1,20 @@
 import { Check, Minus } from "lucide-react"
 
-const tiers = [
+type PriceTier = {
+  name: string
+  price: string
+  usdNote?: string
+  period?: string
+  desc: string
+  popular?: boolean
+  features: { included: boolean; text: string }[]
+  cta: string
+  href: string
+}
+
+const tiers: PriceTier[] = [
   {
-    name: "FREE",
+    name: "Free",
     price: "$0",
     desc: "Para equipos pequeños que quieren empezar a fortalecer su seguridad.",
     features: [
@@ -18,8 +30,9 @@ const tiers = [
     href: "/register",
   },
   {
-    name: "PRO",
-    price: "$99",
+    name: "Pro",
+    price: "ARS 15k",
+    usdNote: "~$15 USD",
     period: "/mes",
     desc: "Para empresas que necesitan monitoreo continuo y simulación avanzada.",
     popular: true,
@@ -36,8 +49,10 @@ const tiers = [
     href: "/register",
   },
   {
-    name: "ENTERPRISE",
-    price: "Custom",
+    name: "Team",
+    price: "ARS 45k",
+    usdNote: "~$45 USD",
+    period: "/mes",
     desc: "Para organizaciones con necesidades específicas de seguridad y compliance.",
     features: [
       { included: true, text: "Todo lo de Pro" },
@@ -93,6 +108,11 @@ export function PricingSection() {
                     </span>
                   )}
                 </div>
+                {tier.usdNote && (
+                  <p className="font-mono text-xs text-muted-foreground/60 mt-0.5">
+                    {tier.usdNote}
+                  </p>
+                )}
                 <p className="font-mono text-xs text-muted-foreground mt-3">
                   {tier.desc}
                 </p>

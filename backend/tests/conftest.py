@@ -10,6 +10,7 @@ import os
 
 # Must happen before `from app.main import app` (config is bound at import).
 os.environ["SECRET_KEY"] = "test-secret"
+os.environ["RESEND_API_KEY"] = "re_test_key"
 
 import pytest_asyncio  # noqa: E402
 from httpx import ASGITransport, AsyncClient  # noqa: E402

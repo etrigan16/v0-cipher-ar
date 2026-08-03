@@ -68,3 +68,54 @@ describe("api.auth", () => {
     )
   })
 })
+
+describe("api.waitlist", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    localStorage.clear()
+  })
+
+  it("submit POSTs email to /waitlist", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        okJson({ id: "uuid-1", email: "user@example.com", company: null, created_at: "2025-01-01T00:00:00Z" })
+      )
+    vi.stubGlobal("fetch", fetchMock)
+
+    const res = await api.waitlist.submit("user@example.com")
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toContain("/waitlist")
+    expect(options.method).toBe("POST")
+    expect(options.body).toBe(JSON.stringify({ email: "user@example.com", company: undefined }))
+    expect(res.id).toBe("uuid-1")
+    expect(res.email).toBe("user@example.com")
+  })
+
+  it("submit includes optional company in the body", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        okJson({ id: "uuid-2", email: "user@acme.com", company: "Acme Corp", created_at: "2025-01-01T00:00:00Z" })
+      )
+    vi.stubGlobal("fetch", fetchMock)
+
+    await api.waitlist.submit("user@acme.com", "Acme Corp")
+
+    const [, options] = fetchMock.mock.calls[0] as [string, RequestInit]
+    const body = JSON.parse(options.body as string)
+    expect(body.email).toBe("user@acme.com")
+    expect(body.company).toBe("Acme Corp")
+  })
+
+  it("throws API error on non-OK response", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(errJson(409, "Email already registered"))
+    vi.stubGlobal("fetch", fetchMock)
+
+    await expect(api.waitlist.submit("dup@example.com")).rejects.toThrow(
+      "Email already registered"
+    )
+  })
+})
