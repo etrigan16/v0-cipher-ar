@@ -28,6 +28,37 @@ async function request<T>(
   return res.json()
 }
 
+export type Asset = {
+  id: string
+  domain: string
+  subdomain: string | null
+  ip: string | null
+  port: number | null
+  service: string | null
+  fingerprint: Record<string, unknown> | null
+  status: string
+  first_seen: string
+  last_seen: string
+}
+
+export type Scan = {
+  id: string
+  domain: string
+  status: string
+  started_at: string | null
+  completed_at: string | null
+  created_at: string
+}
+
+export type Finding = {
+  id: string
+  asset_id: string
+  severity: string
+  title: string
+  detail: string | null
+  discovered_at: string
+}
+
 export const api = {
   auth: {
     login: (email: string, password: string) =>
@@ -62,11 +93,14 @@ export const api = {
     },
   },
   asm: {
-    list: () => request<{ assets: unknown[] }>("/asm/assets"),
-    scan: (assetId: string) =>
-      request<{ scan_id: string }>(`/asm/scan/${assetId}`, { method: "POST" }),
-    results: (scanId: string) =>
-      request<{ findings: unknown[] }>(`/asm/results/${scanId}`),
+    listAssets: () => request<{ assets: Asset[] }>("/asm/assets"),
+    scanDomain: (domain: string) =>
+      request<{ scan: Scan; assets: Asset[] }>("/asm/scans", {
+        method: "POST",
+        body: JSON.stringify({ domain }),
+      }),
+    getResults: (scanId: string) =>
+      request<{ scan: Scan; findings: Finding[] }>(`/asm/results/${scanId}`),
   },
   waitlist: {
     submit: (email: string, company?: string) =>

@@ -60,8 +60,8 @@ Chain strategy: feature-branch-chain
 
 ## Phase 4: Frontend Wiring
 
-- [ ] 4.1 Update `lib/api.ts` `asm` namespace: typed `list()`, `scan(domain)` (POST /asm/scans), `results(scanId)`; remove `scan(assetId)`
-- [ ] 4.2 RED test: `lib/api.test.ts` covers typed `asm` fetch contract (mock fetch)
-- [ ] 4.3 `app/dashboard/attack-surface/page.tsx`: fetch real assets + start scan via `api.asm`
-- [ ] 4.4 `app/dashboard/page.tsx`: real asset/finding/scan counts from `api.asm`
-- [ ] 4.5 Verify `pnpm lint` + `tsc --noEmit` pass; run full `pnpm test && cd backend && pytest` green
+- [x] 4.1 Update `lib/api.ts` `asm` namespace: typed `list()`, `scan(domain)` (POST /asm/scans), `results(scanId)`; remove `scan(assetId)`
+- [x] 4.2 RED test: `lib/api.test.ts` covers typed `asm` fetch contract (mock fetch)
+- [x] 4.3 `app/dashboard/attack-surface/page.tsx`: fetch real assets + start scan via `api.asm`
+- [x] 4.4 `app/dashboard/page.tsx`: real asset/finding/scan counts from `api.asm`
+- [x] 4.5 Verify `pnpm lint` + `tsc --noEmit` pass; run full `pnpm test && cd backend && pytest` green

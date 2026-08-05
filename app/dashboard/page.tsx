@@ -1,17 +1,39 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { useAuth } from "@/components/auth-context"
+import { api } from "@/lib/api"
 import { Crosshair, Siren, Activity, AlertTriangle } from "lucide-react"
-
-const stats = [
-  { label: "Activos monitoreados", value: "0", icon: Crosshair, color: "text-primary" },
-  { label: "Vulnerabilidades activas", value: "0", icon: AlertTriangle, color: "text-destructive" },
-  { label: "Campañas de phishing", value: "0", icon: Siren, color: "text-chart-3" },
-  { label: "Escaneos este mes", value: "0", icon: Activity, color: "text-chart-5" },
-]
 
 export default function DashboardPage() {
   const { user } = useAuth()
+  const [assetCount, setAssetCount] = useState<string>("0")
+  const [assetsLoading, setAssetsLoading] = useState(true)
+
+  useEffect(() => {
+    let active = true
+    api.asm
+      .listAssets()
+      .then((res) => {
+        if (active) setAssetCount(String(res.assets.length))
+      })
+      .catch(() => {
+        if (active) setAssetCount("0")
+      })
+      .finally(() => {
+        if (active) setAssetsLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const stats = [
+    { label: "Activos monitoreados", value: assetsLoading ? "…" : assetCount, icon: Crosshair, color: "text-primary" },
+    { label: "Vulnerabilidades activas", value: "0", icon: AlertTriangle, color: "text-destructive" },
+    { label: "Campañas de phishing", value: "0", icon: Siren, color: "text-chart-3" },
+    { label: "Escaneos este mes", value: "0", icon: Activity, color: "text-chart-5" },
+  ]
 
   return (
     <div>
@@ -39,7 +61,7 @@ export default function DashboardPage() {
           Conectá el backend para ver datos reales de tu infraestructura.
         </p>
         <a
-          href="/register"
+          href="/dashboard/attack-surface"
           className="inline-flex items-center gap-2 font-mono text-sm border border-primary px-6 py-3 text-primary hover:bg-primary hover:text-background transition-colors"
         >
           Configurar monitoreo

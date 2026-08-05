@@ -119,3 +119,84 @@ describe("api.waitlist", () => {
     )
   })
 })
+
+describe("api.asm", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    localStorage.clear()
+  })
+
+  const asset = {
+    id: "asset-1",
+    domain: "example.com",
+    subdomain: "www.example.com",
+    ip: "93.184.216.34",
+    port: 443,
+    service: "https",
+    fingerprint: { title: "Example" },
+    status: "discovered",
+    first_seen: "2025-01-01T00:00:00Z",
+    last_seen: "2025-01-01T00:00:00Z",
+  }
+
+  it("listAssets GETs /asm/assets and returns typed assets", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(okJson({ assets: [asset] }))
+    vi.stubGlobal("fetch", fetchMock)
+
+    const res = await api.asm.listAssets()
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toContain("/asm/assets")
+    expect(options.method ?? "GET").toBe("GET")
+    expect(res.assets).toHaveLength(1)
+    expect(res.assets[0].subdomain).toBe("www.example.com")
+  })
+
+  it("scanDomain POSTs {domain} to /asm/scans and returns scan + assets", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      okJson({
+        scan: { id: "scan-1", domain: "example.com", status: "complete", started_at: null, completed_at: null, created_at: "2025-01-01T00:00:00Z" },
+        assets: [asset],
+      })
+    )
+    vi.stubGlobal("fetch", fetchMock)
+
+    const res = await api.asm.scanDomain("example.com")
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toContain("/asm/scans")
+    expect(options.method).toBe("POST")
+    expect(options.body).toBe(JSON.stringify({ domain: "example.com" }))
+    expect(res.scan.status).toBe("complete")
+    expect(res.assets[0].ip).toBe("93.184.216.34")
+  })
+
+  it("getResults GETs /asm/results/{id} and returns scan + findings", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      okJson({
+        scan: { id: "scan-1", domain: "example.com", status: "complete", started_at: null, completed_at: null, created_at: "2025-01-01T00:00:00Z" },
+        findings: [{ id: "f-1", asset_id: "asset-1", severity: "low", title: "TLS expired", detail: null, discovered_at: "2025-01-01T00:00:00Z" }],
+      })
+    )
+    vi.stubGlobal("fetch", fetchMock)
+
+    const res = await api.asm.getResults("scan-1")
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toContain("/asm/results/scan-1")
+    expect(options.method ?? "GET").toBe("GET")
+    expect(res.findings[0].severity).toBe("low")
+  })
+
+  it("propagates API error detail on non-OK scan response", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(errJson(400, "Invalid domain"))
+    vi.stubGlobal("fetch", fetchMock)
+
+    await expect(api.asm.scanDomain("bad-domain")).rejects.toThrow("Invalid domain")
+  })
+})

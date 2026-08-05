@@ -1,11 +1,12 @@
-# Apply Progress: attack-surface-core — PR 1 + PR 2 + PR 3
+# Apply Progress: attack-surface-core — PR 1 + PR 2 + PR 3 + PR 4
 
-**Status**: Phase 1 + Phase 2 + Phase 3 complete (18/18 tasks). Phase 4 deferred.
+**Status**: ALL PHASES COMPLETE (23/23 tasks). Ready for verify/archive.
 **Mode**: Standard (tests written alongside each work unit; no strict TDD gate).
-**Delivery strategy**: chained (feature-branch-chain) — 4 PRs. PR 1, PR 2, PR 3 done.
+**Delivery strategy**: chained (feature-branch-chain) — 4 PRs. PR 1, PR 2, PR 3, PR 4 done.
 **PR 1 branch**: `feature/attack-surface-core-p1` (targeted tracker `feature/attack-surface-core`).
 **PR 2 branch**: `feature/attack-surface-core-p2` (base = p1 branch).
 **PR 3 branch**: `feature/attack-surface-core-p3` (base = p2 branch).
+**PR 4 branch**: `feature/attack-surface-core-p4` (base = p3 branch). **CURRENT**.
 
 ---
 
@@ -121,12 +122,55 @@ definition. No orchestration layer added (Phase 3).
 
 ---
 
+## PR 4 — Frontend Wiring (Phase 4) [complete] ← CURRENT SLICE
+
+### Work Unit Evidence
+
+| Evidence | Required value |
+|---|---|
+| Focused test command + result | `pnpm test lib/api.test.ts app/dashboard/attack-surface/page.test.tsx` → **15 passed** (4 new `api.asm` contract tests + 4 attack-surface page tests + existing 7). |
+| Full-suite frontend regression | `pnpm test` → **30 passed, 8 failed** (the 8 failures are pre-existing in `app/dashboard/mfa/page.test.tsx` + `app/login/page.test.tsx`; confirmed identical on base `p3` via `git stash` — NOT introduced by PR 4). |
+| Full-suite backend regression | `cd backend && python -m pytest tests/ -q` → **56 passed, 2 skipped** (unchanged, green). |
+| Runtime harness | `pnpm dev` browse `/dashboard/attack-surface`: assets fetched via `GET /asm/assets`, scan via `POST /asm/scans`, table + scan status render; static-zero placeholders replaced. |
+| Rollback boundary | Revert `lib/api.ts` asm namespace + `lib/api.test.ts` asm describe + `app/dashboard/attack-surface/page.tsx` (+`page.test.tsx`) + `app/dashboard/page.tsx` → returns to static zeros. Frontend-only; no backend/data impact. |
+
+### Completed Tasks (Phase 4)
+
+- [x] 4.1 `lib/api.ts` — `asm` namespace rewritten to match backend contract: `listAssets()` → GET /asm/assets, `scanDomain(domain)` → POST /asm/scans `{domain}`, `getResults(scanId)` → GET /asm/results/{scan_id}; old `scan(assetId)` (POST /asm/scan/{id}) removed. Added exported `Asset`/`Scan`/`Finding` types.
+- [x] 4.2 RED test — `lib/api.test.ts` adds `describe("api.asm")`: typed fetch contract for `listAssets`/`scanDomain`/`getResults` (URL, method, body) + error propagation (mock fetch).
+- [x] 4.3 `app/dashboard/attack-surface/page.tsx` — fetches real assets on mount via `api.asm.listAssets()`; renders asset table (subdomain, ip, port, service, fingerprint title, status, discovered date) + monitored-asset count; domain input form triggers `api.asm.scanDomain(domain)` with loading state, scan status display, and asset refresh after scan; empty/error/loading states.
+- [x] 4.4 `app/dashboard/page.tsx` — "Activos monitoreados" card wired to real `api.asm.listAssets()` count (loading `…`, fallback `0` on error); dashboard CTA now links to `/dashboard/attack-surface`.
+- [x] 4.5 Final gate — `pnpm exec tsc --noEmit` → clean (0 errors); `pnpm lint` → **0 errors, 7 warnings (all pre-existing** in untouched files: mfa page, auth-context, ui/carousel, ui/sidebar, use-mobile, hooks/use-mobile); full `pnpm test` + `cd backend && pytest` verified (see evidence above).
+
+### Files Changed (PR 4)
+
+| File | Action | Description |
+|------|--------|-------------|
+| `lib/api.ts` | Modified | `asm` namespace → `listAssets`/`scanDomain`/`getResults`; exported `Asset`/`Scan`/`Finding` types |
+| `lib/api.test.ts` | Modified | `describe("api.asm")` — 4 mocked-fetch contract tests |
+| `app/dashboard/attack-surface/page.tsx` | Modified | Real assets fetch + table + scan form + status + refresh |
+| `app/dashboard/attack-surface/page.test.tsx` | Created | 4 page tests (mock fetch): lists assets, shows count, starts scan + refresh, error state |
+| `app/dashboard/page.tsx` | Modified | Real asset count stat card + CTA link to attack-surface |
+| `openspec/changes/attack-surface-core/tasks.md` | Modified | Phase 4 tasks marked `[x]` (all 23 complete) |
+
+### Deviations from Design / Prompt (PR 4)
+
+- Method names: tasks.md/prompt said typed `list()`, `scan(domain)`, `results(scanId)`; implemented as `listAssets()`, `scanDomain(domain)`, `getResults(scanId)` — the launch prompt's own task-1 wording (`scanDomain(domain)`, `listAssets()`, `getResults(scanId)`) is authoritative and self-consistent with the backend DTOs.
+- Asset `discovered_at` (listed in spec's model table) does not exist on the Phase-1 `Asset` model — the model uses `first_seen`/`last_seen` only. The page renders the "Descubierto" column from `first_seen`. This is a pre-existing Phase-1 deviation, not introduced here.
+- Dashboard stat wiring: only "Activos monitoreados" is wired to real data (feasible from `GET /asm/assets`); findings/scans counts would require a new backend endpoint, out of scope for this slice. Other cards keep static zeros (unchanged behavior).
+- GET-request tests assert `options.method ?? "GET"` because `request()` does not set `method` on GET (fetch default), matching the existing `auth.me`/waitlist test convention.
+
+### Issues Found (PR 4)
+
+- Pre-existing frontend test failures: `app/dashboard/mfa/page.test.tsx` (4) and `app/login/page.test.tsx` (4) fail on base branch `p3` too (verified by `git stash`). Out of scope for this slice; noted for verify phase.
+
+---
+
 ## PR Boundary / Workload (cumulative)
 
-- Mode: chained PR slice (feature-branch-chain). PR 1, PR 2 and PR 3 complete.
+- Mode: chained PR slice (feature-branch-chain). All 4 PRs complete (23/23 tasks).
 - PR 1 boundary: models + migration + RLS + dnspython pin (p1 branch).
-- PR 2 boundary: discovery services (crt.sh + DNS + HTTP/TLS fingerprint) + tests (p2 branch).
-- PR 2 review budget: 663 additions / 6 deletions (~669 changed lines).
-- PR 3 boundary: orchestrator + /asm API + config knobs (p3 branch). 413 additions /
-  20 deletions tracked (~433) + new `orchestrator.py` (~200 lines).
-- Remaining PR: PR 4 (frontend: lib/api.ts asm namespace + attack-surface + dashboard pages).
+- PR 2 boundary: discovery services + tests (p2 branch). ~669 changed lines.
+- PR 3 boundary: orchestrator + /asm API + config knobs (p3 branch). 413/20 tracked + new orchestrator.py (~200).
+- PR 4 boundary: frontend wiring (p4 branch). `lib/api.ts` (+~60/-10), `lib/api.test.ts` (+~90), attack-surface page (+~140), new page.test.tsx (+~100), dashboard page (+~30).
+- Final: `feature/attack-surface-core` tracker aggregates p1→p4; full change ready for `sdd-verify`.
