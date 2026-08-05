@@ -52,11 +52,11 @@ Chain strategy: feature-branch-chain
 
 ## Phase 3: Orchestration + API
 
-- [ ] 3.1 `orchestrator.py`: `async run_scan(db, tenant_id, domain)` — passive → active → upsert `Asset` (preserve first_seen) → persist `Finding` → `Scan` status complete/error + completed_at
-- [ ] 3.2 RED test: `POST /asm/scans` persists scan+assets+findings, upsert no-dup, error→`error` status
-- [ ] 3.3 Rewrite `backend/app/routes/asm.py`: `ScanCreate{domain}` body, add `get_tenant_context`+`get_current_user` deps; `POST /asm/scans` sync → `{scan, assets}`; `GET /asm/assets` tenant-filtered; `GET /asm/results/{scan_id}` tenant-filtered else 404
-- [ ] 3.4 Add scan timeout/concurrency/rate-limit knobs to `backend/app/config.py` Settings
-- [ ] 3.5 RED e2e: 401 unauth on `POST /asm/scans`; cross-tenant `GET /asm/results` → 404 isolation (two tenants)
+- [x] 3.1 `orchestrator.py`: `async run_scan(db, tenant_id, domain)` — passive → active → upsert `Asset` (preserve first_seen) → persist `Finding` → `Scan` status complete/error + completed_at
+- [x] 3.2 RED test: `POST /asm/scans` persists scan+assets+findings, upsert no-dup, error→`error` status
+- [x] 3.3 Rewrite `backend/app/routes/asm.py`: `ScanCreate{domain}` body, add `get_tenant_context`+`get_current_user` deps; `POST /asm/scans` sync → `{scan, assets}`; `GET /asm/assets` tenant-filtered; `GET /asm/results/{scan_id}` tenant-filtered else 404
+- [x] 3.4 Add scan timeout/concurrency/rate-limit knobs to `backend/app/config.py` Settings
+- [x] 3.5 RED e2e: 401 unauth on `POST /asm/scans`; cross-tenant `GET /asm/results` → 404 isolation (two tenants)
 
 ## Phase 4: Frontend Wiring
 
