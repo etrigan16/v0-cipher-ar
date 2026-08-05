@@ -37,12 +37,18 @@ Chain strategy: feature-branch-chain
 
 ## Phase 2: Discovery Services
 
-- [ ] 2.1 Create `backend/app/services/discovery/__init__.py` package marker
-- [ ] 2.2 `crtsh.py`: `enumerate_subdomains(domain, http)` → GET `?q=%25.{domain}&output=json`, parse/dedupe hostnames, do NOT abort on timeout/error (return partial + log)
-- [ ] 2.3 RED test: crt.sh parse/dedupe + `crt.sh unavailable` continues partial (mocked `httpx.AsyncClient`)
-- [ ] 2.4 `dns.py`: `resolve(hostname, resolver)` dnspython A/AAAA/CNAME with per-query timeout, returns live hostnames (skip unresolvable)
-- [ ] 2.5 `fingerprint.py`: httpx probe (status/server/title/x-powered-by) + ssl CN/SAN → fingerprint dict + candidate findings list
-- [ ] 2.6 RED test: fingerprint extraction + unresolvable host skipped (mock `dns.resolver`/`httpx`)
+> Note (PR 2 deviation): the orchestrator's launch prompt places these modules
+> directly under `backend/app/services/` (`enumerate.py`, `dns.py`,
+> `fingerprint.py`) rather than the planning `services/discovery/` subpackage
+> named below. All six Phase-2 tasks are implemented at the orchestrator-specified
+> paths. Persistence and orchestration remain out of scope (Phase 3).
+
+- [x] 2.1 Create `backend/app/services/__init__.py` service package marker
+- [x] 2.2 `enumerate.py`: `enumerate_subdomains(domain, http)` → GET `?q=%25.{domain}&output=json`, parse/dedupe hostnames, do NOT abort on timeout/error (return partial + log)
+- [x] 2.3 RED test: crt.sh parse/dedupe + `crt.sh unavailable` continues partial (mocked `httpx.AsyncClient`)
+- [x] 2.4 `dns.py`: `resolve(hostname, resolver)` dnspython A/AAAA/CNAME with per-query timeout, returns live hostnames (skip unresolvable)
+- [x] 2.5 `fingerprint.py`: httpx probe (status/server/title/x-powered-by) + ssl CN/SAN → fingerprint dict + candidate findings list
+- [x] 2.6 RED test: fingerprint extraction + unresolvable host skipped (mock `dns.resolver`/`httpx`)
 
 ## Phase 3: Orchestration + API
 
