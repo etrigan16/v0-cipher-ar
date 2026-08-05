@@ -1,8 +1,9 @@
-"""Attack-surface discovery services (PR 2 — Discovery Services).
+"""Attack-surface discovery services (PR 2 + PR 3).
 
-Pure, independently-testable modules that produce plain dict / Pydantic
-results. They do NOT touch the database — persisting results is the job of
-the Phase 3 orchestration layer.
+The pure Phase 2 modules (``enumerate``, ``dns``, ``fingerprint``) produce
+plain dict / Pydantic results and never touch the database. ``orchestrator``
+(Phase 3) wires those pure services into DB persistence and owns the ``Scan``
+lifecycle.
 
 Modules
 -------
@@ -12,4 +13,6 @@ Modules
     Active DNS resolution (A/AAAA) via dnspython.
 ``fingerprint``
     Active HTTP/TLS fingerprinting via httpx + the standard ssl module.
+``orchestrator``
+    ``run_scan`` — Scan lifecycle, Asset upsert, Finding persistence.
 """
