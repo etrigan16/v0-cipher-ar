@@ -24,6 +24,9 @@ from app.models.finding import Finding
 from app.models.scan import Scan
 from app.models.tenant import Tenant
 
+# Phase 3: orchestrator module is patched so tests never touch the network.
+from app.services import orchestrator  # noqa: E402
+
 
 @pytest_asyncio.fixture
 async def db_session():
@@ -194,3 +197,237 @@ class TestFindingModel:
         assert finding.severity == "medium"
         assert finding.title == "Missing HSTS header"
         assert finding.discovered_at is not None
+
+
+# ---------------------------------------------------------------------------
+# Phase 3: Orchestration + API integration tests (PR 3)
+# ---------------------------------------------------------------------------
+# These exercise the real /asm routes over the SQLite ASGITransport client,
+# with the external discovery services mocked via monkeypatch on the
+# orchestrator module. They prove the scan lifecycle, Asset upsert on
+# re-scan, cross-tenant isolation (app-level filter), and error status.
+
+
+class _FakeResolution:
+    """Stand-in for a DiscoveryResult: has .ips/.hostname/.cname."""
+
+    def __init__(self, ips, cname=None):
+        self.ips = ips
+        self.cname = cname
+        self.hostname = "www.example.com"
+
+
+class _FakeFingerprint:
+    """Stand-in for a FingerprintResult: to_dict() + .findings."""
+
+    def __init__(self, findings=None):
+        self._findings = findings or []
+
+    def to_dict(self):
+        return {
+            "hostname": "www.example.com",
+            "port": 443,
+            "scheme": "https",
+            "status_code": 200,
+            "title": "Example",
+            "server": "nginx",
+            "x_powered_by": None,
+            "tls": {"subject_cn": "*.example.com", "subject_alt_names": ["example.com"]},
+        }
+
+    @property
+    def findings(self):
+        return self._findings
+
+
+async def _register_and_login(client, email: str, company: str) -> dict:
+    """Register + login a fresh tenant and return its Authorization header."""
+    await client.post(
+        "/auth/register",
+        json={
+            "email": email,
+            "password": "secret123",
+            "name": company,
+            "company_name": company,
+        },
+    )
+    resp = await client.post(
+        "/auth/login", json={"email": email, "password": "secret123"}
+    )
+    token = resp.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
+def _patch_discovery(
+    monkeypatch,
+    subdomains=None,
+    findings=None,
+):
+    """Patch the orchestrator's discovery deps with deterministic fakes."""
+    subdomains = subdomains if subdomains is not None else ["www.example.com"]
+
+    async def _enumerate(domain):
+        return subdomains
+
+    def _resolve(hostname, **kwargs):
+        return _FakeResolution(ips=["203.0.113.10"])
+
+    async def _fingerprint(hostname, **kwargs):
+        return _FakeFingerprint(findings=findings)
+
+    monkeypatch.setattr(orchestrator.crtsh_service, "enumerate_subdomains", _enumerate)
+    monkeypatch.setattr(orchestrator.dns_service, "resolve", _resolve)
+    monkeypatch.setattr(orchestrator.fp_service, "fingerprint", _fingerprint)
+
+
+def _patch_enumerate_raises(monkeypatch):
+    """Make enumeration raise — used to assert the Scan lands on ``error``."""
+
+    async def _enumerate_raises(domain):
+        raise RuntimeError("crt.sh exploded unexpectedly")
+
+    async def _resolve(hostname, **kwargs):
+        return _FakeResolution(ips=["203.0.113.10"])
+
+    async def _fingerprint(hostname, **kwargs):
+        return _FakeFingerprint()
+
+    monkeypatch.setattr(orchestrator.crtsh_service, "enumerate_subdomains", _enumerate_raises)
+    monkeypatch.setattr(orchestrator.dns_service, "resolve", _resolve)
+    monkeypatch.setattr(orchestrator.fp_service, "fingerprint", _fingerprint)
+
+
+class TestScanLifecycle:
+    """POST /asm/scans persists scan+assets and moves running -> completed."""
+
+    async def test_scan_created_and_completed(self, client, monkeypatch):
+        """R-TriggerScan/Valid: discovery persists assets and scan completes."""
+        _patch_discovery(monkeypatch, findings=[{"severity": "medium", "title": "Missing HSTS", "detail": "No HSTS"}])
+        headers = await _register_and_login(client, "lifecycle@test.com", "Lifecycle Corp")
+
+        resp = await client.post("/asm/scans", json={"domain": "example.com"}, headers=headers)
+        assert resp.status_code == 201
+        body = resp.json()
+
+        assert body["scan"]["domain"] == "example.com"
+        assert body["scan"]["status"] == "completed"
+        assert body["scan"]["started_at"] is not None
+        assert body["scan"]["completed_at"] is not None
+
+        # Assets persisted for the discovered live host.
+        assert len(body["assets"]) == 1
+        asset = body["assets"][0]
+        assert asset["subdomain"] == "www.example.com"
+        assert asset["ip"] == "203.0.113.10"
+        assert asset["service"] == "https"
+        assert asset["fingerprint"]["server"] == "nginx"
+
+        # Finding is recorded and linked via /asm/results.
+        results = await client.get(f"/asm/results/{body['scan']['id']}", headers=headers)
+        assert results.status_code == 200
+        findings = results.json()["findings"]
+        assert len(findings) == 1
+        assert findings[0]["title"] == "Missing HSTS"
+
+
+class TestScanUpsert:
+    """Re-scan upserts instead of duplicating (preserve first_seen)."""
+
+    async def test_rescan_no_duplicate_and_preserves_first_seen(self, client, monkeypatch):
+        """R-Asset/Upsert via API: second scan of same domain updates, no dup."""
+        _patch_discovery(monkeypatch)
+        headers = await _register_and_login(client, "upsert@test.com", "Upsert Corp")
+
+        first = await client.post("/asm/scans", json={"domain": "example.com"}, headers=headers)
+        first_asset = first.json()["assets"][0]
+        first_seen = first_asset["first_seen"]
+
+        second = await client.post("/asm/scans", json={"domain": "example.com"}, headers=headers)
+        assert second.status_code == 201
+        second_asset = second.json()["assets"][0]
+
+        # Only ONE asset for the subdomain (no duplicate row).
+        listed = await client.get("/asm/assets", headers=headers)
+        assets = listed.json()["assets"]
+        assert len(assets) == 1
+
+        # first_seen preserved, last_seen bumped forward.
+        assert second_asset["first_seen"] == first_seen
+        assert second_asset["last_seen"] >= first_seen
+
+
+class TestIsolation:
+    """App-level tenant filter: cross-tenant data is 404 / empty."""
+
+    async def test_assets_isolated_between_tenants(self, client, monkeypatch):
+        """R-ListAssets/Isolation: tenant A does not see tenant B's assets."""
+        _patch_discovery(monkeypatch)
+        headers_a = await _register_and_login(client, "a@test.com", "A Corp")
+        headers_b = await _register_and_login(client, "b@test.com", "B Corp")
+
+        await client.post("/asm/scans", json={"domain": "a-domain.com"}, headers=headers_a)
+
+        listed_a = await client.get("/asm/assets", headers=headers_a)
+        listed_b = await client.get("/asm/assets", headers=headers_b)
+
+        assert len(listed_a.json()["assets"]) == 1
+        assert listed_a.json()["assets"][0]["domain"] == "a-domain.com"
+        # Tenant B sees none of A's assets.
+        assert listed_b.json()["assets"] == []
+
+    async def test_cross_tenant_results_404(self, client, monkeypatch):
+        """R-ScanResults/CrossTenant: another tenant's scan_id returns 404."""
+        _patch_discovery(monkeypatch)
+        headers_a = await _register_and_login(client, "a2@test.com", "A2 Corp")
+        headers_b = await _register_and_login(client, "b2@test.com", "B2 Corp")
+
+        scan = await client.post("/asm/scans", json={"domain": "owner.com"}, headers=headers_a)
+        scan_id = scan.json()["scan"]["id"]
+
+        results = await client.get(f"/asm/results/{scan_id}", headers=headers_b)
+        assert results.status_code == 404
+        # No findings leak to the other tenant.
+        assert "findings" not in results.json()
+
+    async def test_missing_scan_404(self, client, monkeypatch):
+        """A scan id that does not exist returns 404 for the owner too."""
+        headers = await _register_and_login(client, "missing@test.com", "Missing Corp")
+        resp = await client.get("/asm/results/00000000-0000-0000-0000-000000000000", headers=headers)
+        assert resp.status_code == 404
+
+
+class TestScanError:
+    """A discovery failure flips the Scan to ``error`` with completed_at set."""
+
+    async def test_discovery_failure_marks_scan_error(self, client, monkeypatch):
+        """R-Scan/Error: unexpected discovery failure -> status=error."""
+        _patch_enumerate_raises(monkeypatch)
+        headers = await _register_and_login(client, "error@test.com", "Error Corp")
+
+        resp = await client.post("/asm/scans", json={"domain": "bad.com"}, headers=headers)
+        # Route still returns the scan; it is marked error, not a 500.
+        assert resp.status_code == 201
+        body = resp.json()
+        assert body["scan"]["status"] == "error"
+        assert body["scan"]["completed_at"] is not None
+        assert body["assets"] == []
+
+
+class TestUnauthenticated:
+    """POST /asm/scans requires a valid token (401) and creates no scan."""
+
+    async def test_invalid_token_rejected(self, client, monkeypatch):
+        """R-TriggerScan/Unauth: no valid token -> 401, no assets persisted."""
+        _patch_discovery(monkeypatch)
+
+        resp = await client.post(
+            "/asm/scans",
+            json={"domain": "example.com"},
+            headers={"Authorization": "Bearer not-a-real-token"},
+        )
+        assert resp.status_code == 401
+
+        # The authorized owner has no assets, proving no scan ran under the bogus token.
+        headers = await _register_and_login(client, "ok@test.com", "Ok Corp")
+        listed = await client.get("/asm/assets", headers=headers)
+        assert listed.json()["assets"] == []
