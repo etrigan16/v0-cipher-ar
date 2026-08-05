@@ -10,6 +10,13 @@ python-multipart==0.0.18
 pydantic[email]==2.10.3
 pydantic-settings==2.7.0
 
+# Attacker surface discovery (DNS resolution for active fingerprinting)
+dnspython==2.8.0
+
+# Alembic for schema migrations
+alembic==1.18.5
+python-slugify==8.0.4
+
 # Test dependencies (pytest harness; see backend/pytest.ini)
 pytest==9.1.1
 pytest-asyncio==1.4.0

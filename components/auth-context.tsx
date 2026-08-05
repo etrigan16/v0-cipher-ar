@@ -3,10 +3,16 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react"
 import { api } from "@/lib/api"
 
+type Tenant = {
+  id: string
+  slug: string
+}
+
 type User = {
   id: string
   email: string
   name: string
+  tenant: Tenant | null
 }
 
 export type MfaChallenge = {
@@ -24,7 +30,7 @@ type AuthContextType = {
   loading: boolean
   mfaChallenge: MfaChallenge | null
   login: (email: string, password: string) => Promise<LoginResult>
-  register: (email: string, password: string, name: string) => Promise<void>
+  register: (email: string, password: string, name: string, companyName: string) => Promise<void>
   logout: () => void
   completeMfaChallenge: (code: string) => Promise<void>
   clearMfaChallenge: () => void
@@ -84,8 +90,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setMfaChallenge(null)
   }, [])
 
-  const register = useCallback(async (email: string, password: string, name: string) => {
-    await api.auth.register(email, password, name)
+  const register = useCallback(async (email: string, password: string, name: string, companyName: string) => {
+    const result = await api.auth.register(email, password, name, companyName)
+    setUser(result)
   }, [])
 
   const logout = useCallback(() => {

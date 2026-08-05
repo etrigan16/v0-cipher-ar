@@ -35,12 +35,12 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ email, password }),
       }),
-    register: (email: string, password: string, name: string) =>
-      request<{ id: string; email: string; name: string }>("/auth/register", {
+    register: (email: string, password: string, name: string, companyName: string) =>
+      request<{ id: string; email: string; name: string; tenant: { id: string; slug: string } }>("/auth/register", {
         method: "POST",
-        body: JSON.stringify({ email, password, name }),
+        body: JSON.stringify({ email, password, name, company_name: companyName }),
       }),
-    me: () => request<{ id: string; email: string; name: string }>("/auth/me"),
+    me: () => request<{ id: string; email: string; name: string; tenant: { id: string; slug: string } }>("/auth/me"),
     mfa: {
       setup: () => request<{ secret: string; uri: string }>("/auth/mfa/setup"),
       verify: (code: string) =>

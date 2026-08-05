@@ -20,11 +20,14 @@ PARTIAL_TOKEN_EXPIRE_MINUTES = 5
 security = HTTPBearer()
 
 
-def create_partial_token(user_id: str) -> str:
+def create_partial_token(user_id: str, tenant_id: str | None = None) -> str:
     """Return a 5-minute JWT with ``mfa_challenge: true``."""
     expire = datetime.now(timezone.utc) + timedelta(minutes=PARTIAL_TOKEN_EXPIRE_MINUTES)
+    payload: dict = {"sub": user_id, "exp": expire, "mfa_challenge": True}
+    if tenant_id:
+        payload["tenant_id"] = tenant_id
     return jwt.encode(
-        {"sub": user_id, "exp": expire, "mfa_challenge": True},
+        payload,
         settings.secret_key,
         algorithm=settings.algorithm,
     )

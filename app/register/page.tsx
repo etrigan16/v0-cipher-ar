@@ -9,6 +9,7 @@ import { api } from "@/lib/api"
 export default function RegisterPage() {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
+  const [companyName, setCompanyName] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
@@ -20,7 +21,7 @@ export default function RegisterPage() {
     setError("")
     setLoading(true)
     try {
-      await api.auth.register(email, password, name)
+      await api.auth.register(email, password, name, companyName)
       const res = await api.auth.login(email, password)
       localStorage.setItem("token", res.access_token)
       router.push("/dashboard")
@@ -70,6 +71,21 @@ export default function RegisterPage() {
                 required
                 className="w-full bg-background border border-border px-4 py-3 font-mono text-sm text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none transition-colors"
                 placeholder="Tu nombre"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="companyName" className="block font-mono text-xs text-muted-foreground mb-2">
+                EMPRESA
+              </label>
+              <input
+                id="companyName"
+                type="text"
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                required
+                className="w-full bg-background border border-border px-4 py-3 font-mono text-sm text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none transition-colors"
+                placeholder="Tu empresa"
               />
             </div>
 

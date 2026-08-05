@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Column, DateTime, String
+from sqlalchemy import Column, DateTime, ForeignKey, String
 from sqlalchemy import Uuid as SqlUuid
 from sqlalchemy.sql import func
 
@@ -35,4 +35,5 @@ class WaitlistEntry(Base):
     email = Column(String, unique=True, nullable=False, index=True)
     company = Column(String, nullable=True)
     source = Column(String, nullable=False, default="landing")
+    tenant_id = Column(CoercingUuid(), ForeignKey("tenants.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

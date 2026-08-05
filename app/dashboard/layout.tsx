@@ -51,6 +51,11 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         </Link>
 
         <div className="ml-auto flex items-center gap-4">
+          {user.tenant && (
+            <span className="font-mono text-xs text-primary hidden sm:block">
+              {user.tenant.slug}
+            </span>
+          )}
           <span className="font-mono text-xs text-muted-foreground hidden sm:block">
             {user.email}
           </span>

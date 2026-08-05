@@ -144,5 +144,13 @@ async def challenge_mfa(
         challenge_limiter.record(key)
         raise HTTPException(status_code=401, detail="Código inválido")
 
-    full_token = create_access_token(str(user.id))
+    from app.models.tenant import Tenant
+
+    tenant_result = await db.execute(select(Tenant).where(Tenant.id == user.tenant_id))
+    tenant = tenant_result.scalar_one_or_none()
+
+    full_token = create_access_token(
+        str(user.id),
+        tenant_id=str(tenant.id) if tenant else None,
+    )
     return TokenResponse(access_token=full_token)
