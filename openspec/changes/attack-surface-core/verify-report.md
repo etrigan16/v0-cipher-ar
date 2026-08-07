@@ -1,14 +1,14 @@
 ```yaml
 schema: gentle-ai.verify-result/v1
-evidence_revision: sha256:5038f3d1fd934dd18392bbad9d5b29ca8706900f9a48cf740add7f4042247bb5
-verdict: fail
+evidence_revision: sha256:d9e4fdef8938f2b89f045f73f9848ff4ce2dcb83938c063498cfec816ad8661d
+verdict: pass
 blockers: 0
 critical_findings: 0
 requirements: 10/10
-scenarios: 18/19
-test_command: cd backend && python -m pytest tests/ -q && cd .. && pnpm exec vitest run lib/api.test.ts app/dashboard/attack-surface/page.test.tsx --no-file-parallelism
+scenarios: 19/19
+test_command: pnpm test && cd backend && python -m pytest tests/ -q
 test_exit_code: 0
-test_output_hash: sha256:3425ba838294bebff00dc15a11019f5398024536e88c5bccea6fdaaf31ba3169
+test_output_hash: sha256:953be030b3f64d4fd4ef3315a815619528baeb4072e03f150de00eb6f1a54c0c
 build_command: pnpm exec tsc --noEmit
 build_exit_code: 0
 build_output_hash: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
@@ -19,7 +19,9 @@ build_output_hash: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca49599
 **Change**: attack-surface-core
 **Version**: sprint-1-core (specs/attack-surface/spec.md)
 **Mode**: Standard (no strict TDD gate)
-**Verdict**: FAIL (strict envelope) / PASS WITH WARNINGS (human assessment)
+**Verdict**: PASS (strict envelope + human assessment)
+
+**Re-verify note**: This is the re-verification after remediation batch R. The prior report (evidence_revision `sha256:5038f3d1…`, verdict `fail`) flagged 1 PARTIAL scenario ("Dashboard counts reflect data") and 8 pre-existing frontend test failures. Both are now closed: `GET /asm/stats` + `api.asm.getStats()` + dashboard cards wired to real counts (with `app/dashboard/page.test.tsx` covering the scenario), and the MFA/login test failures fixed (`provisioning_uri` contract drift + login page R8 TOTP step).
 
 ### Completeness
 | Metric | Value |
@@ -36,18 +38,16 @@ exit 0, no diagnostics
 
 **Lint**: ✅ 0 errors, 7 warnings (all pre-existing in untouched files: mfa page, auth-context, ui/carousel, ui/sidebar, use-mobile, hooks/use-mobile)
 
-**Backend tests**: ✅ 56 passed / 2 skipped (RLS tests, PG-only per existing convention) — exit 0
+**Backend tests**: ✅ 58 passed / 2 skipped (RLS tests, PG-only per existing convention) — exit 0
 ```text
-56 passed, 2 skipped, 3 warnings in 34.06s
+58 passed, 2 skipped, 3 warnings in 14.85s
 ```
 
-**Frontend asm-focused tests**: ✅ 15/15 passed — exit 0
+**Frontend full suite**: ✅ 42 passed (8/8 files), 0 failures — exit 0
 ```text
-Test Files  2 passed (2)
-     Tests  15 passed (15)
+Test Files  8 passed (8)
+     Tests  42 passed (42)
 ```
-
-**Frontend full suite**: ⚠️ 30 passed / 8 failed — exit 1. The 8 failures are PRE-EXISTING: `app/dashboard/mfa/page.test.tsx` (4) + `app/login/page.test.tsx` (4). Independently proven pre-existing by running the same two files at the pre-change merge-base `80772c4` (before any of the 4 PRs) via a temp worktree: identical `8 failed | 3 passed`. Both files are byte-identical between the merge-base and `feature/attack-surface-core-p4` (0-line diff), and neither file appears in the change's file list. **Not caused by this change** — reported as WARNING, not CRITICAL.
 
 **Coverage**: ➖ Not available (no coverage gate configured for this change)
 
@@ -72,9 +72,9 @@ Test Files  2 passed (2)
 | Multi-tenant RLS | RLS enabled on new tables | `test_multitenant.py` RLS tests (PG-gated, skip on SQLite per documented convention); `database.py::init_db` RLS block enables RLS + `tenant_isolation` policy on assets/scans/findings; `003_attack_surface.py` migration validated via `alembic upgrade head --sql` (PR 1 evidence) | ✅ COMPLIANT |
 | Multi-tenant RLS | App filter proves isolation on SQLite | `test_asm.py > TestIsolation::test_assets_isolated_between_tenants`; `test_cross_tenant_results_404`; `TestAssetModel::test_asset_isolated_by_tenant` | ✅ COMPLIANT |
 | Frontend Dashboard | Attack-surface shows real assets | `app/dashboard/attack-surface/page.test.tsx` (4 tests: lists assets, shows count, starts scan + refresh, error state); `lib/api.test.ts > describe("api.asm")` (4 contract tests) | ✅ COMPLIANT |
-| Frontend Dashboard | Dashboard counts reflect data | asset card wired to `api.asm.listAssets()` (real count); finding/scan cards remain static zeros (documented out-of-scope deviation); NO covering test file for `app/dashboard/page.tsx` | ⚠️ PARTIAL |
+| Frontend Dashboard | Dashboard counts reflect data | `app/dashboard/page.test.tsx` (3 tests: real counts from /asm/stats, error fallback to zeros, loading placeholder); backend `test_asm.py > TestStats::test_stats_counts_only_own_tenant` + `test_stats_requires_auth`; `lib/api.test.ts > getStats` contract test | ✅ COMPLIANT |
 
-**Compliance summary**: 18/19 scenarios compliant, 1 partial
+**Compliance summary**: 19/19 scenarios compliant (previously 18/19, 1 partial)
 
 ### Correctness (Static Evidence)
 | Requirement | Status | Notes |
@@ -88,7 +88,7 @@ Test Files  2 passed (2)
 | Subdomain Enumeration (crt.sh) | ✅ Implemented | `services/enumerate.py`: GET `?q=%25.{domain}&output=json`, dedupe, suffix-attack guard, partial-fail on timeout/error |
 | Active Fingerprinting | ✅ Implemented | `services/dns.py` (dnspython A/AAAA, NXDOMAIN/NoAnswer tolerant) + `services/fingerprint.py` (httpx status/server/title/x-powered-by + ssl CN/SAN + candidate findings); orchestrated with config timeouts |
 | Multi-tenant RLS | ✅ Implemented | `database.py` RLS ENABLE + tenant_isolation policy on assets/scans/findings; app-level filter in all /asm routes (SQLite isolation proof) |
-| Frontend Dashboard | ⚠️ Partial | `lib/api.ts` asm namespace (listAssets/scanDomain/getResults) + attack-surface page real fetch/scan; dashboard asset count real, finding/scan counts static zeros |
+| Frontend Dashboard | ✅ Implemented | `lib/api.ts` asm namespace (listAssets/scanDomain/getResults/getStats) + attack-surface page real fetch/scan; dashboard cards all wired to `api.asm.getStats()` (assets/findings/scans), phishing card static 0 (no counts endpoint for that domain — out of scope) |
 
 ### Coherence (Design)
 | Decision | Followed? | Notes |
@@ -101,16 +101,12 @@ Test Files  2 passed (2)
 | Finding source: fingerprint module returns candidates; orchestrator persists | ✅ Yes | fingerprint.findings → orchestrator Finding rows |
 | `get_tenant_context` dep | ⚠️ Deviation | Used existing `get_current_user` (user.tenant_id) — documented, consistent with codebase |
 | `services/discovery/` subpackage | ⚠️ Deviation | Implemented flat `services/enumerate.py|dns.py|fingerprint.py|orchestrator.py` — orchestrator-directed slice, documented |
-| Frontend asm method names `list()/scan()/results()` | ⚠️ Deviation | Implemented `listAssets()/scanDomain()/getResults()` — documented, matches backend DTOs |
+| Frontend asm method names `list()/scan()/results()` | ⚠️ Deviation | Implemented `listAssets()/scanDomain()/getResults()/getStats()` — documented, matches backend DTOs |
 
 ### Issues Found
 **CRITICAL**: None
 
-**WARNING**:
-1. Spec scenario "Dashboard counts reflect data" is PARTIAL: only the "Activos monitoreados" card is wired to real data (`api.asm.listAssets()`); finding and scan count cards remain static zeros. The apply-progress documents this as out-of-scope (would require a new backend counts endpoint). No covering test exists for `app/dashboard/page.tsx` (no `page.test.tsx`). Recommendation: either add a backend counts endpoint + wire the cards, or amend the spec scope.
-2. Scan status verb: spec `complete` → implementation `completed` (and `pending` default vs spec `queued`). Internally consistent, all tests green, forward-compatible with Sprint-2 queue — but spec text and model diverge.
-3. 8 pre-existing frontend test failures (`app/dashboard/mfa/page.test.tsx` ×4, `app/login/page.test.tsx` ×4) keep `pnpm test` red (exit 1). Proven pre-existing at merge-base `80772c4` (identical 8 failed | 3 passed in a temp worktree; 0-line diff vs p4; files absent from change diff). Not caused by this change, but CI stays red until the MFA/login tests are fixed.
-4. Native `gentle-ai sdd-status` routes `nextRecommended: review` — bounded review transaction is missing, so final archive is gated until an explicit `review/start` runs. Not a code defect; orchestration concern.
+**WARNING**: None (all previously-flagged warnings resolved)
 
 **SUGGESTION**:
 1. Asset model omits spec's `discovered_at` column (first_seen/last_seen cover it) — align spec text or add column in a follow-up.
@@ -118,6 +114,8 @@ Test Files  2 passed (2)
 3. Discovery module path differs from design (`services/` flat vs `services/discovery/`) — update design.md so design and implementation agree.
 4. `lib/api.ts` asm method names differ from design's `list()/scan(domain)/results(scanId)` — already self-consistent; note in design if kept.
 5. Lint reports 7 pre-existing warnings in untouched files (mfa page, auth-context, ui/carousel, ui/sidebar, use-mobile) — cleanup candidate for a separate chore.
+6. "Campañas de phishing" dashboard card stays static `0` — no counts endpoint exists for that domain; out of scope for this change.
+7. Scan status verb `completed`/`pending` vs spec `complete`/`queued` — forward-compatible with Sprint-2 queue; consider aligning spec text.
 
 ### Verdict
-FAIL (strict envelope) — human assessment PASS WITH WARNINGS. 23/23 tasks complete; 18/19 spec scenarios compliant with passing runtime coverage (backend 56/2, frontend asm 15/15, tsc clean, lint 0 errors); 1 scenario PARTIAL ("Dashboard counts reflect data": finding/scan cards remain static zeros) makes the strict evidence incomplete, so the native validator admits `verdict: fail` — persistable but NOT archive-ready. The 8 frontend failures were proven pre-existing at the pre-change merge-base `80772c4` and are unrelated to this change. Archive readiness additionally requires the bounded review transaction (native status routes `nextRecommended: review`).
+PASS (strict envelope + human assessment). 23/23 tasks complete; 19/19 spec scenarios compliant with passing runtime coverage (backend 58 passed / 2 skipped, frontend 42/42, tsc clean, lint 0 errors). Remediation batch R closed the two prior failures: "Dashboard counts reflect data" is now COMPLIANT via `GET /asm/stats` + `TestStats` + `app/dashboard/page.test.tsx` + `api.asm.getStats()`; the 8 pre-existing MFA/login test failures are fixed (MFA `provisioning_uri` contract drift and the missing login TOTP step). No CRITICAL or WARNING findings remain. Archive readiness still requires the bounded review transaction (native status routes `nextRecommended: review`).
