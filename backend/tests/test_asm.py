@@ -413,6 +413,33 @@ class TestScanError:
         assert body["assets"] == []
 
 
+class TestStats:
+    """GET /asm/stats returns tenant-scoped counts for the dashboard."""
+
+    async def test_stats_counts_only_own_tenant(self, client, monkeypatch):
+        """R-Dashboard: counts reflect data for the requesting tenant only."""
+        _patch_discovery(monkeypatch)
+        headers_a = await _register_and_login(client, "stats-a@test.com", "Stats A Corp")
+        headers_b = await _register_and_login(client, "stats-b@test.com", "Stats B Corp")
+
+        await client.post("/asm/scans", json={"domain": "a-domain.com"}, headers=headers_a)
+
+        # Tenant A: 1 asset (www.example.com), 0 findings, 1 scan.
+        body_a = (await client.get("/asm/stats", headers=headers_a)).json()
+        assert body_a == {"assets": 1, "findings": 0, "scans": 1}
+
+        # Tenant B has no data — counts are zero, nothing leaks from A.
+        body_b = (await client.get("/asm/stats", headers=headers_b)).json()
+        assert body_b == {"assets": 0, "findings": 0, "scans": 0}
+
+    async def test_stats_requires_auth(self, client):
+        """No valid token -> 401."""
+        resp = await client.get(
+            "/asm/stats", headers={"Authorization": "Bearer not-a-real-token"}
+        )
+        assert resp.status_code == 401
+
+
 class TestUnauthenticated:
     """POST /asm/scans requires a valid token (401) and creates no scan."""
 

@@ -101,6 +101,8 @@ export const api = {
       }),
     getResults: (scanId: string) =>
       request<{ scan: Scan; findings: Finding[] }>(`/asm/results/${scanId}`),
+    getStats: () =>
+      request<{ assets: number; findings: number; scans: number }>("/asm/stats"),
   },
   waitlist: {
     submit: (email: string, company?: string) =>

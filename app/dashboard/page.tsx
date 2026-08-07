@@ -5,34 +5,39 @@ import { useAuth } from "@/components/auth-context"
 import { api } from "@/lib/api"
 import { Crosshair, Siren, Activity, AlertTriangle } from "lucide-react"
 
+type Stats = { assets: number; findings: number; scans: number }
+
+const EMPTY_STATS: Stats = { assets: 0, findings: 0, scans: 0 }
+
 export default function DashboardPage() {
   const { user } = useAuth()
-  const [assetCount, setAssetCount] = useState<string>("0")
-  const [assetsLoading, setAssetsLoading] = useState(true)
+  const [stats, setStats] = useState<Stats | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let active = true
     api.asm
-      .listAssets()
+      .getStats()
       .then((res) => {
-        if (active) setAssetCount(String(res.assets.length))
+        if (active) setStats(res)
       })
       .catch(() => {
-        if (active) setAssetCount("0")
+        // Keep the cards readable (zeros) instead of crashing the dashboard.
+        if (active) setStats(EMPTY_STATS)
       })
       .finally(() => {
-        if (active) setAssetsLoading(false)
+        if (active) setLoading(false)
       })
     return () => {
       active = false
     }
   }, [])
 
-  const stats = [
-    { label: "Activos monitoreados", value: assetsLoading ? "…" : assetCount, icon: Crosshair, color: "text-primary" },
-    { label: "Vulnerabilidades activas", value: "0", icon: AlertTriangle, color: "text-destructive" },
+  const statCards = [
+    { label: "Activos monitoreados", value: loading ? "…" : String(stats?.assets ?? 0), icon: Crosshair, color: "text-primary" },
+    { label: "Vulnerabilidades activas", value: loading ? "…" : String(stats?.findings ?? 0), icon: AlertTriangle, color: "text-destructive" },
     { label: "Campañas de phishing", value: "0", icon: Siren, color: "text-chart-3" },
-    { label: "Escaneos este mes", value: "0", icon: Activity, color: "text-chart-5" },
+    { label: "Escaneos este mes", value: loading ? "…" : String(stats?.scans ?? 0), icon: Activity, color: "text-chart-5" },
   ]
 
   return (
@@ -47,7 +52,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-px bg-border">
-        {stats.map((stat) => (
+        {statCards.map((stat) => (
           <div key={stat.label} className="bg-card p-6">
             <stat.icon className={`${stat.color} mb-4`} size={24} />
             <div className="font-mono text-3xl font-bold mb-1">{stat.value}</div>

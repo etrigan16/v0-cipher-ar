@@ -12,7 +12,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -140,6 +140,39 @@ async def list_assets(
         .order_by(Asset.last_seen.desc())
     )
     return {"assets": [_asset_dto(a) for a in result.scalars().all()]}
+
+
+@router.get("/stats")
+async def get_stats(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return tenant-scoped counts for the dashboard stat cards.
+
+    Each count is filtered on the authenticated user's ``tenant_id`` so a
+    tenant only ever sees its own data (same app-level isolation as the
+    other /asm routes).
+    """
+    assets = await db.scalar(
+        select(func.count())
+        .select_from(Asset)
+        .where(Asset.tenant_id == user.tenant_id)
+    )
+    findings = await db.scalar(
+        select(func.count())
+        .select_from(Finding)
+        .where(Finding.tenant_id == user.tenant_id)
+    )
+    scans = await db.scalar(
+        select(func.count())
+        .select_from(Scan)
+        .where(Scan.tenant_id == user.tenant_id)
+    )
+    return {
+        "assets": assets or 0,
+        "findings": findings or 0,
+        "scans": scans or 0,
+    }
 
 
 @router.get("/results/{scan_id}")

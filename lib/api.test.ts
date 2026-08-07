@@ -193,6 +193,21 @@ describe("api.asm", () => {
     expect(res.findings[0].severity).toBe("low")
   })
 
+  it("getStats GETs /asm/stats and returns tenant counts", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(okJson({ assets: 3, findings: 2, scans: 1 }))
+    vi.stubGlobal("fetch", fetchMock)
+
+    const res = await api.asm.getStats()
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toContain("/asm/stats")
+    expect(options.method ?? "GET").toBe("GET")
+    expect(res).toEqual({ assets: 3, findings: 2, scans: 1 })
+  })
+
   it("propagates API error detail on non-OK scan response", async () => {
     const fetchMock = vi.fn().mockResolvedValue(errJson(400, "Invalid domain"))
     vi.stubGlobal("fetch", fetchMock)
