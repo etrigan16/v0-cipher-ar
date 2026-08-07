@@ -73,7 +73,7 @@ export const api = {
       }),
     me: () => request<{ id: string; email: string; name: string; tenant: { id: string; slug: string } }>("/auth/me"),
     mfa: {
-      setup: () => request<{ secret: string; uri: string }>("/auth/mfa/setup"),
+      setup: () => request<{ secret: string; provisioning_uri: string }>("/auth/mfa/setup"),
       verify: (code: string) =>
         request<{ success: boolean }>("/auth/mfa/verify", {
           method: "POST",

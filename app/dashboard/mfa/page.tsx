@@ -43,7 +43,7 @@ export default function MfaPage() {
     try {
       const res = await api.auth.mfa.setup()
       setSecret(res.secret)
-      setProvisioningUri(res.uri)
+      setProvisioningUri(res.provisioning_uri)
       setShowSetup(true)
       setMfaEnabled(false)
     } catch (err) {
