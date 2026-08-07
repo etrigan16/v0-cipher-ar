@@ -1,6 +1,6 @@
 # Apply Progress: attack-surface-core — PR 1 + PR 2 + PR 3 + PR 4
 
-**Status**: ALL PHASES COMPLETE (23/23 tasks). Ready for verify/archive.
+**Status**: ALL PHASES COMPLETE (23/23 tasks) + FINAL REMEDIATION BATCH (R). Ready for verify/archive.
 **Mode**: Standard (tests written alongside each work unit; no strict TDD gate).
 **Delivery strategy**: chained (feature-branch-chain) — 4 PRs. PR 1, PR 2, PR 3, PR 4 done.
 **PR 1 branch**: `feature/attack-surface-core-p1` (targeted tracker `feature/attack-surface-core`).
@@ -163,6 +163,63 @@ definition. No orchestration layer added (Phase 3).
 ### Issues Found (PR 4)
 
 - Pre-existing frontend test failures: `app/dashboard/mfa/page.test.tsx` (4) and `app/login/page.test.tsx` (4) fail on base branch `p3` too (verified by `git stash`). Out of scope for this slice; noted for verify phase.
+
+---
+
+## Remediation Batch R — verify fail → both goals closed [complete]
+
+Verify (verdict: fail) flagged 1 PARTIAL scenario ("Dashboard counts reflect data":
+finding/scan cards static zeros) and 8 pre-existing frontend test failures (MFA +
+login). This batch closes both. No new tasks added to `tasks.md` (23/23 remain
+complete); this is focused remediation of the failed evidence.
+
+### Work Unit Evidence
+
+| Evidence | Required value |
+|---|---|
+| Focused test command + result | `cd backend && python -m pytest tests/test_asm.py -v` → **15 passed** (2 new `TestStats`: tenant-scoped counts + 401 unauth). `pnpm exec vitest run app/dashboard/mfa/page.test.tsx app/login/page.test.tsx app/dashboard/page.test.tsx lib/api.test.ts` → **26 passed** (the 8 previously-failing tests now green + 4 new stats tests). |
+| Runtime harness command/scenario | Backend: real `GET /asm/stats` exercised via ASGITransport `client` with two registered tenants — counts reflect only the caller's tenant. Frontend: `pnpm dev` browse `/dashboard` — cards render real counts from `/asm/stats`. |
+| Rollback boundary | Stats: revert `routes/asm.py` `/stats` + `TestStats` + `lib/api.ts` `getStats` + dashboard page/test → returns to static zeros (asset count via `listAssets`). MFA: revert `lib/api.ts` `mfa.setup` type + `app/dashboard/mfa/page.tsx` (`provisioning_uri`) + `app/login/page.tsx` → returns to the pre-batch component behavior. |
+
+### Completed Work (Batch R)
+
+- [x] R.1 Backend `GET /asm/stats` in `backend/app/routes/asm.py` — `select(func.count()).select_from(Model).where(Model.tenant_id == user.tenant_id)` for `Asset`/`Finding`/`Scan`, returns `{assets, findings, scans}`; `Depends(get_current_user)` like the other /asm routes.
+- [x] R.2 Backend tests `TestStats` in `tests/test_asm.py` — tenant A counts (1 asset / 0 findings / 1 scan), tenant B zeros (isolation), 401 without token.
+- [x] R.3 `lib/api.ts` — `asm.getStats()` → GET /asm/stats typed `{ assets: number; findings: number; scans: number }`.
+- [x] R.4 `lib/api.test.ts` — mocked-fetch contract test for `getStats` (URL, GET, typed counts).
+- [x] R.5 `app/dashboard/page.tsx` — ALL stat cards wired to `api.asm.getStats()`: "Activos monitoreados" (assets), "Vulnerabilidades activas" (findings), "Escaneos este mes" (scans); loading `…` state; error falls back to zeros. "Campañas de phishing" stays `0` (no counts endpoint for that domain — out of scope).
+- [x] R.6 `app/dashboard/page.test.tsx` (created) — 3 tests: real counts render from /asm/stats, error fallback to zeros, loading placeholder.
+- [x] R.7 Fix MFA setup contract mismatch — backend returns `provisioning_uri` (MfaSetupResponse), but `lib/api.ts` typed `uri` and the page read `res.uri` (undefined) so the QR/TOTP section never rendered. Changed `lib/api.ts` `auth.mfa.setup` type to `{ secret, provisioning_uri }` and `app/dashboard/mfa/page.tsx` to `setProvisioningUri(res.provisioning_uri)`. Fixes 3 MFA page test failures (QR display, activado, disable form/disable flow).
+- [x] R.8 Rewrite `app/login/page.tsx` — real component bug: the login page ignored `mfa_required` and always redirected, so the R8 TOTP step never existed. Page now consumes `AuthContext` (`login`/`mfaChallenge`/`completeMfaChallenge`/`clearMfaChallenge`, already implemented + unit-tested in auth-context) and renders a CÓDIGO TOTP step with "Verificar código" and "Volver al inicio de sesión". Page self-wraps in `AuthProvider` (production `/login` is not under the dashboard layout's provider). Fixes all 4 login test failures. NOTE: the backend `/auth/login` does not yet emit `mfa_required`/`partial_token` (the `/auth/mfa/challenge` route exists but is unreachable from login) — frontend handles the contract; backend MFA-challenge-on-login emission is out of scope for this batch.
+
+### Files Changed (Batch R)
+
+| File | Action | Description |
+|------|--------|-------------|
+| `backend/app/routes/asm.py` | Modified | `GET /asm/stats` tenant-scoped counts endpoint |
+| `backend/tests/test_asm.py` | Modified | `TestStats` (counts isolation + 401) |
+| `lib/api.ts` | Modified | `asm.getStats()` + fix `auth.mfa.setup` type to `provisioning_uri` |
+| `lib/api.test.ts` | Modified | `getStats` contract test |
+| `app/dashboard/page.tsx` | Modified | All stat cards wired to `getStats()` with loading/error states |
+| `app/dashboard/page.test.tsx` | Created | 3 stats tests |
+| `app/dashboard/mfa/page.tsx` | Modified | `res.uri` → `res.provisioning_uri` |
+| `app/login/page.tsx` | Modified | AuthContext-driven login + MFA TOTP step (R8) |
+
+### Batch R Verification Gates (all green)
+
+| Gate | Command | Result |
+|------|---------|--------|
+| Backend tests | `cd backend && python -m pytest` | **58 passed, 2 skipped** |
+| Type-check | `pnpm exec tsc --noEmit` | clean, exit 0 |
+| Lint | `pnpm lint` | **0 errors**, 7 pre-existing warnings (untouched files) |
+| Frontend tests | `pnpm test` | **42 passed (8/8 files), 0 failures** (was 30/8) |
+| Git status | `git status` | clean after work-unit commits |
+
+### Work Unit Evidence (full suite, Batch R)
+
+- Focused: `pytest tests/test_asm.py -v` → 15 passed; vitest 4 files → 26 passed.
+- Regression: `pnpm test` → 42 passed | 0 failed; backend `pytest` → 58 passed, 2 skipped (RLS PG-only).
+- Rollback: see table above — each fix is independently revertible.
 
 ---
 
