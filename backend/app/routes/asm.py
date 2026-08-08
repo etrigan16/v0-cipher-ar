@@ -412,10 +412,12 @@ async def get_stats(
         .select_from(Scan)
         .where(Scan.tenant_id == user.tenant_id)
     )
+    # Risk fields (spec: Stats Risk Fields) — same shape risk-summary uses.
     return {
         "assets": assets or 0,
         "findings": findings or 0,
         "scans": scans or 0,
+        **await _risk_metrics(db, user.tenant_id),
     }
 
 

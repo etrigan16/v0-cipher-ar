@@ -548,23 +548,61 @@ class TestScanError:
 
 
 class TestStats:
-    """GET /asm/stats returns tenant-scoped counts for the dashboard."""
+    """GET /asm/stats returns tenant-scoped counts + risk fields (PR2)."""
 
     async def test_stats_counts_only_own_tenant(self, client, monkeypatch):
-        """R-Dashboard: counts reflect data for the requesting tenant only."""
+        """R-Dashboard/004: counts + risk fields reflect the requesting tenant only."""
         _patch_discovery(monkeypatch)
         headers_a = await _register_and_login(client, "stats-a@test.com", "Stats A Corp")
         headers_b = await _register_and_login(client, "stats-b@test.com", "Stats B Corp")
 
         await client.post("/asm/scans", json={"domain": "a-domain.com"}, headers=headers_a)
 
-        # Tenant A: 1 asset, 3 rule-driven findings, 1 scan.
+        # Tenant A: 1 asset, 3 rule-driven findings, 1 scan + risk fields.
         body_a = (await client.get("/asm/stats", headers=headers_a)).json()
-        assert body_a == {"assets": 1, "findings": 3, "scans": 1}
+        # Legacy counts keep their shape and values (backward compatible).
+        assert body_a["assets"] == 1
+        assert body_a["findings"] == 3
+        assert body_a["scans"] == 1
+        # Risk fields: 2 medium (5.5, 5.5) + 1 low (2.5).
+        assert body_a["severity_counts"] == {
+            "info": 0, "low": 1, "medium": 2, "high": 0, "critical": 0,
+        }
+        assert body_a["avg_risk"] == 4.5
+        assert body_a["max_risk"] == 5.5
+        assert body_a["open_findings"] == 3
 
-        # Tenant B has no data — counts are zero, nothing leaks from A.
+        # Tenant B has no data — counts zero, risk fields zeroed, no leak from A.
         body_b = (await client.get("/asm/stats", headers=headers_b)).json()
-        assert body_b == {"assets": 0, "findings": 0, "scans": 0}
+        assert body_b == {
+            "assets": 0,
+            "findings": 0,
+            "scans": 0,
+            "severity_counts": {
+                "info": 0, "low": 0, "medium": 0, "high": 0, "critical": 0,
+            },
+            "avg_risk": 0.0,
+            "max_risk": 0.0,
+            "open_findings": 0,
+        }
+
+    async def test_stats_risk_fields_reflect_richer_data(self, client, monkeypatch):
+        """Stats risk fields derive from the tenant's scored findings."""
+        _patch_discovery(monkeypatch)
+        headers = await _register_and_login(client, "stats-rich@test.com", "Stats Rich Corp")
+        await _seed_scans(client, headers, monkeypatch)
+
+        body = (await client.get("/asm/stats", headers=headers)).json()
+        assert body["assets"] == 2
+        assert body["findings"] == 5
+        assert body["scans"] == 2
+        # 5 findings: 3 medium (6.5, 5.5, 5.5) + 2 low (2.5, 2.5).
+        assert body["severity_counts"] == {
+            "info": 0, "low": 2, "medium": 3, "high": 0, "critical": 0,
+        }
+        assert body["avg_risk"] == 4.5
+        assert body["max_risk"] == 6.5
+        assert body["open_findings"] == 5
 
     async def test_stats_requires_auth(self, client):
         """No valid token -> 401."""
