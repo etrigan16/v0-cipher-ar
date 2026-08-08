@@ -1,18 +1,30 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { useAuth } from "@/components/auth-context"
-import { api } from "@/lib/api"
+import { api, type RiskSummary } from "@/lib/api"
+import RiskDistributionChart from "@/components/charts/risk-distribution"
 import { Crosshair, Siren, Activity, AlertTriangle } from "lucide-react"
 
 type Stats = { assets: number; findings: number; scans: number }
 
 const EMPTY_STATS: Stats = { assets: 0, findings: 0, scans: 0 }
 
+const ZERO_SEVERITY_COUNTS = {
+  info: 0,
+  low: 0,
+  medium: 0,
+  high: 0,
+  critical: 0,
+}
+
 export default function DashboardPage() {
   const { user } = useAuth()
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [riskSummary, setRiskSummary] = useState<RiskSummary | null>(null)
+  const [riskLoading, setRiskLoading] = useState(true)
 
   useEffect(() => {
     let active = true
@@ -28,6 +40,20 @@ export default function DashboardPage() {
       .finally(() => {
         if (active) setLoading(false)
       })
+
+    api.asm
+      .getRiskSummary()
+      .then((res) => {
+        if (active) setRiskSummary(res)
+      })
+      .catch(() => {
+        // Zeroed metrics keep the risk section readable on failure.
+        if (active) setRiskSummary(null)
+      })
+      .finally(() => {
+        if (active) setRiskLoading(false)
+      })
+
     return () => {
       active = false
     }
@@ -39,6 +65,10 @@ export default function DashboardPage() {
     { label: "Campañas de phishing", value: "0", icon: Siren, color: "text-chart-3" },
     { label: "Escaneos este mes", value: loading ? "…" : String(stats?.scans ?? 0), icon: Activity, color: "text-chart-5" },
   ]
+
+  const severityCounts = riskSummary?.severity_counts ?? ZERO_SEVERITY_COUNTS
+  const avgRisk = riskSummary?.avg_risk ?? 0
+  const openFindings = riskSummary?.open_findings ?? 0
 
   return (
     <div>
@@ -59,6 +89,33 @@ export default function DashboardPage() {
             <div className="font-mono text-xs text-muted-foreground">{stat.label}</div>
           </div>
         ))}
+      </div>
+
+      <div className="mt-8 grid lg:grid-cols-3 gap-px bg-border">
+        <div className="bg-card p-6 lg:col-span-2">
+          <h2 className="font-mono text-sm font-bold mb-4">DISTRIBUCIÓN DE SEVERIDAD</h2>
+          <RiskDistributionChart severityCounts={severityCounts} />
+        </div>
+        <div className="bg-card p-6 space-y-8">
+          <div>
+            <div className="font-mono text-xs text-muted-foreground mb-1">RIESGO PROMEDIO</div>
+            <div className="font-mono text-3xl font-bold">
+              {riskLoading ? "…" : avgRisk}
+            </div>
+          </div>
+          <div>
+            <div className="font-mono text-xs text-muted-foreground mb-1">HALLAZGOS ABIERTOS</div>
+            <div className="font-mono text-3xl font-bold">
+              {riskLoading ? "…" : openFindings}
+            </div>
+          </div>
+          <Link
+            href="/dashboard/findings"
+            className="inline-flex items-center gap-2 font-mono text-xs text-primary border border-primary px-4 py-2 hover:bg-primary hover:text-background transition-colors"
+          >
+            Ver hallazgos →
+          </Link>
+        </div>
       </div>
 
       <div className="mt-8 border border-border bg-card p-8 text-center">

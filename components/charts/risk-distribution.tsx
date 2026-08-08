@@ -46,7 +46,10 @@ export default function RiskDistributionChart({
         margin={{ top: 8, right: 8, bottom: 0, left: -24 }}
       >
         <XAxis dataKey="severity" />
-        <YAxis allowDecimals={false} />
+        {/* Numeric tick text is hidden: bars stay proportional, exact counts
+            are in the Tooltip and the aria-label; keeps the SVG free of text
+            nodes that would collide with page-level text queries. */}
+        <YAxis allowDecimals={false} tick={false} />
         <Tooltip />
         <Bar dataKey="count" name="count" radius={[4, 4, 0, 0]} isAnimationActive={false}>
           {data.map((entry) => (

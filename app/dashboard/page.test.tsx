@@ -67,3 +67,87 @@ describe("DashboardPage", () => {
     expect(screen.getAllByText("…").length).toBeGreaterThan(0)
   })
 })
+
+describe("DashboardPage risk summary section", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    localStorage.clear()
+  })
+
+  const riskSummary = {
+    severity_counts: { info: 1, low: 2, medium: 3, high: 1, critical: 0 },
+    avg_risk: 4.5,
+    max_risk: 8.2,
+    open_findings: 4,
+    top_findings: [],
+  }
+
+  const routeFetch = (risk: unknown = riskSummary) =>
+    vi.fn().mockImplementation((url: string) => {
+      if (url.includes("/asm/risk-summary")) {
+        return Promise.resolve(okJson(risk))
+      }
+      return Promise.resolve(okJson({ assets: 3, findings: 2, scans: 1 }))
+    })
+
+  it("renders the severity chart, average risk and open findings from /asm/risk-summary", async () => {
+    const fetchMock = routeFetch()
+    vi.stubGlobal("fetch", fetchMock)
+
+    render(<DashboardPage />)
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("img", { name: /distribución de severidad/i })
+      ).toBeInTheDocument()
+    })
+    expect(screen.getByText(/riesgo promedio/i)).toBeInTheDocument()
+    expect(screen.getByText("4.5")).toBeInTheDocument()
+    expect(screen.getByText(/hallazgos abiertos/i)).toBeInTheDocument()
+    expect(screen.getByText("4")).toBeInTheDocument()
+
+    const summaryCall = fetchMock.mock.calls.find(
+      ([url]) => typeof url === "string" && url.includes("/asm/risk-summary")
+    )
+    expect(summaryCall).toBeDefined()
+  })
+
+  it("links to the findings page", async () => {
+    vi.stubGlobal("fetch", routeFetch())
+
+    render(<DashboardPage />)
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("link", { name: /ver hallazgos/i })
+      ).toHaveAttribute("href", "/dashboard/findings")
+    })
+  })
+
+  it("shows zeroed risk metrics when the summary request fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes("/asm/risk-summary")) {
+          return Promise.resolve({
+            ok: false,
+            status: 401,
+            json: async () => ({ detail: "Not authenticated" }),
+          })
+        }
+        return Promise.resolve(okJson({ assets: 3, findings: 2, scans: 1 }))
+      })
+    )
+
+    render(<DashboardPage />)
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("img", { name: /distribución de severidad/i })
+      ).toBeInTheDocument()
+    })
+    expect(screen.getByText(/riesgo promedio/i)).toBeInTheDocument()
+    // avg risk and open findings fall back to zero when the summary fails.
+    expect(screen.getAllByText("0").length).toBeGreaterThanOrEqual(2)
+  })
+})
