@@ -135,6 +135,51 @@ def _finding_dto(f: Finding) -> FindingDTO:
     )
 
 
+async def _severity_counts(db: AsyncSession, tenant_id) -> dict[str, int]:
+    """Count findings per severity band, always with the full 5-key shape."""
+    result = await db.execute(
+        select(Finding.severity, func.count())
+        .where(Finding.tenant_id == tenant_id)
+        .group_by(Finding.severity)
+    )
+    counts = {severity: 0 for severity in SEVERITIES}
+    for severity, count in result.all():
+        if severity in counts:
+            counts[severity] = count
+    return counts
+
+
+async def _risk_metrics(db: AsyncSession, tenant_id) -> dict:
+    """Tenant-scoped risk overview shared by risk-summary and stats.
+
+    Returns severity distribution, average/max ``risk_score`` over the
+    tenant's scored findings (0.0 when none) and the open-finding count.
+    """
+    avg_risk = await db.scalar(
+        select(func.avg(Finding.risk_score)).where(
+            Finding.tenant_id == tenant_id,
+            Finding.risk_score.is_not(None),
+        )
+    )
+    max_risk = await db.scalar(
+        select(func.max(Finding.risk_score)).where(
+            Finding.tenant_id == tenant_id,
+            Finding.risk_score.is_not(None),
+        )
+    )
+    open_findings = await db.scalar(
+        select(func.count())
+        .select_from(Finding)
+        .where(Finding.tenant_id == tenant_id, Finding.status == "open")
+    )
+    return {
+        "severity_counts": await _severity_counts(db, tenant_id),
+        "avg_risk": round(float(avg_risk), 2) if avg_risk is not None else 0.0,
+        "max_risk": round(float(max_risk), 2) if max_risk is not None else 0.0,
+        "open_findings": open_findings or 0,
+    }
+
+
 @router.post("/scans", status_code=status.HTTP_201_CREATED)
 async def trigger_scan(
     body: ScanCreate,
@@ -226,6 +271,34 @@ async def list_findings(
         "total": total or 0,
         "limit": limit,
         "offset": offset,
+    }
+
+
+@router.get("/risk-summary")
+async def get_risk_summary(
+    top: int = 5,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the tenant's risk overview (spec R5).
+
+    ``severity_counts`` (full 5-key shape), average and maximum ``risk_score``,
+    open-finding count, and the top ``top`` findings by risk. Empty tenants
+    get zeroed metrics and an empty list — a 200, never an error.
+    """
+    top = max(1, min(top, 100))
+    top_result = await db.execute(
+        select(Finding)
+        .where(Finding.tenant_id == user.tenant_id)
+        .order_by(
+            Finding.risk_score.desc().nullslast(),
+            Finding.title.asc(),
+        )
+        .limit(top)
+    )
+    return {
+        **await _risk_metrics(db, user.tenant_id),
+        "top_findings": [_finding_dto(f) for f in top_result.scalars().all()],
     }
 
 

@@ -877,3 +877,62 @@ class TestFindingsList:
             "/asm/findings", headers={"Authorization": "Bearer not-a-real-token"}
         )
         assert resp.status_code == 401
+
+
+class TestRiskSummary:
+    """GET /asm/risk-summary — tenant-scoped severity/avg/max/open/top overview."""
+
+    async def test_summary_reflects_only_own_tenant(self, client, monkeypatch):
+        """R5/Summary: counts, avg/max risk and top findings come from this tenant."""
+        _patch_discovery(monkeypatch)
+        headers_a = await _register_and_login(client, "summary-a@test.com", "Summary A Corp")
+        await _seed_scans(client, headers_a, monkeypatch)
+        headers_b = await _register_and_login(client, "summary-b@test.com", "Summary B Corp")
+
+        resp = await client.get("/asm/risk-summary", headers=headers_a)
+        assert resp.status_code == 200
+        body = resp.json()
+
+        # 5 findings: 3 medium (6.5, 5.5, 5.5) + 2 low (2.5, 2.5).
+        assert body["severity_counts"] == {
+            "info": 0, "low": 2, "medium": 3, "high": 0, "critical": 0,
+        }
+        assert body["avg_risk"] == 4.5  # (6.5+5.5+5.5+2.5+2.5)/5
+        assert body["max_risk"] == 6.5
+        assert body["open_findings"] == 5
+        assert len(body["top_findings"]) == 5
+        assert body["top_findings"][0]["finding_type"] == "nonstandard-port"
+        assert body["top_findings"][0]["risk_score"] == 6.5
+
+        # Tenant B sees zeros — nothing leaks from A.
+        resp_b = await client.get("/asm/risk-summary", headers=headers_b)
+        body_b = resp_b.json()
+        assert body_b["severity_counts"] == {
+            "info": 0, "low": 0, "medium": 0, "high": 0, "critical": 0,
+        }
+        assert body_b["avg_risk"] == 0.0
+        assert body_b["max_risk"] == 0.0
+        assert body_b["open_findings"] == 0
+        assert body_b["top_findings"] == []
+
+    async def test_empty_tenant_returns_zeros(self, client):
+        """R5/Empty: a tenant with no findings gets zeroed metrics, 200 not error."""
+        headers = await _register_and_login(client, "summary-empty@test.com", "Summary Empty Corp")
+
+        resp = await client.get("/asm/risk-summary", headers=headers)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["severity_counts"] == {
+            "info": 0, "low": 0, "medium": 0, "high": 0, "critical": 0,
+        }
+        assert body["avg_risk"] == 0.0
+        assert body["max_risk"] == 0.0
+        assert body["open_findings"] == 0
+        assert body["top_findings"] == []
+
+    async def test_requires_auth(self, client):
+        """No valid token -> 401."""
+        resp = await client.get(
+            "/asm/risk-summary", headers={"Authorization": "Bearer not-a-real-token"}
+        )
+        assert resp.status_code == 401
