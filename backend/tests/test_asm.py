@@ -384,7 +384,7 @@ def _patch_discovery(
     monkeypatch.setattr(orchestrator.fp_service, "fingerprint", _fingerprint)
 
 
-async def _seed_scans(client, headers, monkeypatch):
+async def _seed_scans(client, headers, monkeypatch) -> list[str]:
     """Build a deterministic 5-finding dataset across two assets (PR2).
 
     Scan 1 (good.example.com, default fingerprint) fires the 3 missing-header
@@ -392,9 +392,13 @@ async def _seed_scans(client, headers, monkeypatch):
     Scan 2 (exposed.example.com) is header-healthy but serves port 8443 with
     ``Server: nginx/1.24.0``: nonstandard-port 6.5, server-version-disclosure
     2.5. The 5 findings sort by risk desc: [6.5, 5.5, 5.5, 2.5, 2.5].
+
+    Returns the two scan ids (``[good, exposed]``) for cross-referencing.
     """
     _patch_discovery(monkeypatch)
-    await client.post("/asm/scans", json={"domain": "good.example.com"}, headers=headers)
+    first = await client.post(
+        "/asm/scans", json={"domain": "good.example.com"}, headers=headers
+    )
 
     _patch_discovery(
         monkeypatch,
@@ -406,7 +410,10 @@ async def _seed_scans(client, headers, monkeypatch):
             server="nginx/1.24.0",
         ),
     )
-    await client.post("/asm/scans", json={"domain": "exposed.example.com"}, headers=headers)
+    second = await client.post(
+        "/asm/scans", json={"domain": "exposed.example.com"}, headers=headers
+    )
+    return [first.json()["scan"]["id"], second.json()["scan"]["id"]]
 
 
 def _patch_enumerate_raises(monkeypatch):
@@ -896,6 +903,21 @@ class TestFindingsList:
         ids2 = {f["id"] for f in f2["findings"]}
         assert ids1.isdisjoint(ids2)
 
+    async def test_filters_by_scan_id(self, client, monkeypatch):
+        """R4/FilterScan: ?scan_id narrows to one scan's findings."""
+        _patch_discovery(monkeypatch)
+        headers = await _register_and_login(client, "findings-scan@test.com", "Findings Scan Corp")
+        scan_ids = await _seed_scans(client, headers, monkeypatch)
+
+        resp = await client.get(f"/asm/findings?scan_id={scan_ids[0]}", headers=headers)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total"] == 3
+        assert len(body["findings"]) == 3
+
+        resp2 = await client.get(f"/asm/findings?scan_id={scan_ids[1]}", headers=headers)
+        assert resp2.json()["total"] == 2
+
     async def test_cross_tenant_findings_hidden(self, client, monkeypatch):
         """R4/Isolation: another tenant's list never includes our findings."""
         _patch_discovery(monkeypatch)
@@ -967,6 +989,20 @@ class TestRiskSummary:
         assert body["max_risk"] == 0.0
         assert body["open_findings"] == 0
         assert body["top_findings"] == []
+
+    async def test_top_param_limits_top_findings(self, client, monkeypatch):
+        """R5/Top: ?top=N caps the top-findings list (default is 5)."""
+        _patch_discovery(monkeypatch)
+        headers = await _register_and_login(client, "summary-top@test.com", "Summary Top Corp")
+        await _seed_scans(client, headers, monkeypatch)
+
+        default = (await client.get("/asm/risk-summary", headers=headers)).json()
+        assert len(default["top_findings"]) == 5
+
+        capped = (await client.get("/asm/risk-summary?top=2", headers=headers)).json()
+        assert len(capped["top_findings"]) == 2
+        assert capped["top_findings"][0]["risk_score"] == 6.5
+        assert capped["top_findings"][1]["risk_score"] == 5.5
 
     async def test_requires_auth(self, client):
         """No valid token -> 401."""
