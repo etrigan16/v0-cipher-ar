@@ -12,7 +12,7 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,10 +21,12 @@ from app.database import get_db
 from app.models.asset import Asset
 from app.models.finding import Finding
 from app.models.scan import Scan
+from app.models.tenant import Tenant
 from app.models.user import User
 from app.routes.auth import get_current_user
 from app.services.llm.enrich import asset_context, enrich_finding as llm_enrich_finding
 from app.services.orchestrator import recompute_asset_risk, run_scan
+from app.services.reports import ExportFinding, generate_csv, generate_pdf
 
 router = APIRouter(prefix="/asm", tags=["asm"])
 
@@ -463,6 +465,70 @@ async def get_stats(
         "scans": scans or 0,
         **await _risk_metrics(db, user.tenant_id),
     }
+
+
+@router.get("/export")
+async def export_report(
+    format: str | None = None,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Export the tenant's findings as CSV or PDF (spec R1/R2/R3).
+
+    ``format`` must be ``csv`` or ``pdf``; anything else — including a
+    missing value — is a 400 (spec R3). Content is filtered on the
+    authenticated user's ``tenant_id`` (spec R4), so no cross-tenant data can
+    appear in either format. An empty tenant still gets a valid headers-only
+    CSV / zeroed-metrics PDF (200, never an error).
+    """
+    if format not in ("csv", "pdf"):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid export format; expected 'csv' or 'pdf'",
+        )
+
+    result = await db.execute(
+        select(Finding, Asset)
+        .join(Asset, Asset.id == Finding.asset_id)
+        .where(
+            Finding.tenant_id == user.tenant_id,
+            Asset.tenant_id == user.tenant_id,
+        )
+        .order_by(
+            Finding.risk_score.desc().nullslast(),
+            Finding.title.asc(),
+        )
+    )
+    rows = [
+        ExportFinding(
+            asset=asset.domain,
+            title=finding.title,
+            severity=finding.severity,
+            risk_score=finding.risk_score,
+            status=finding.status,
+            remediation=finding.remediation or "",
+            discovered_at=finding.discovered_at,
+        )
+        for finding, asset in result.all()
+    ]
+
+    tenant = await db.get(Tenant, user.tenant_id)
+    tenant_name = tenant.name if tenant is not None else "Organization"
+
+    if format == "csv":
+        content = generate_csv(rows).encode("utf-8")
+        media_type = "text/csv"
+        filename = "asm-findings.csv"
+    else:
+        content = generate_pdf(rows, tenant_name)
+        media_type = "application/pdf"
+        filename = "asm-findings.pdf"
+
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/results/{scan_id}")

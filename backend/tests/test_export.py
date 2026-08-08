@@ -17,6 +17,7 @@ import zlib
 from datetime import datetime, timezone
 
 from app.services.reports import ExportFinding, generate_csv, generate_pdf
+from tests.test_asm import _patch_discovery, _register_and_login, _seed_scans
 
 
 def _finding(**overrides) -> ExportFinding:
@@ -202,3 +203,87 @@ class TestPdfGenerator:
         assert "Maximum risk score: 0.0" in text
 
 
+class TestExportEndpoint:
+    """GET /asm/export — spec R3 (status/content-type/disposition) + R4 (tenant scope)."""
+
+    async def test_csv_download(self, client, monkeypatch):
+        """format=csv -> 200, text/csv, attachment disposition, one row per finding."""
+        _patch_discovery(monkeypatch)
+        headers = await _register_and_login(client, "export-csv@test.com", "Export CSV Corp")
+        await _seed_scans(client, headers, monkeypatch)
+
+        resp = await client.get("/asm/export?format=csv", headers=headers)
+        assert resp.status_code == 200
+        assert resp.headers["content-type"].startswith("text/csv")
+        assert "attachment" in resp.headers["content-disposition"]
+
+        rows = list(csv.reader(io.StringIO(resp.text)))
+        assert rows[0] == [
+            "asset", "finding title", "severity", "risk_score",
+            "status", "remediation", "discovered_at",
+        ]
+        assert len(rows) == 6  # header + 5 seeded findings
+        assets = {r[0] for r in rows[1:]}
+        assert assets == {"good.example.com", "exposed.example.com"}
+
+    async def test_pdf_download(self, client, monkeypatch):
+        """format=pdf -> 200, application/pdf, attachment disposition, valid %PDF."""
+        _patch_discovery(monkeypatch)
+        headers = await _register_and_login(client, "export-pdf@test.com", "Export PDF Corp")
+        await _seed_scans(client, headers, monkeypatch)
+
+        resp = await client.get("/asm/export?format=pdf", headers=headers)
+        assert resp.status_code == 200
+        assert resp.headers["content-type"].startswith("application/pdf")
+        assert "attachment" in resp.headers["content-disposition"]
+        assert resp.content[:4] == b"%PDF"
+        assert len(resp.content) > 1000
+
+    async def test_invalid_format_400(self, client, monkeypatch):
+        """format=docx -> 400 (spec R3 invalid-format scenario)."""
+        _patch_discovery(monkeypatch)
+        headers = await _register_and_login(client, "export-bad@test.com", "Export Bad Corp")
+
+        resp = await client.get("/asm/export?format=docx", headers=headers)
+        assert resp.status_code == 400
+
+    async def test_missing_format_400(self, client, monkeypatch):
+        """No format param -> 400 (spec R3: invalid OR missing format)."""
+        headers = await _register_and_login(client, "export-none@test.com", "Export None Corp")
+
+        resp = await client.get("/asm/export", headers=headers)
+        assert resp.status_code == 400
+
+    async def test_requires_auth(self, client):
+        """No valid token -> 401."""
+        resp = await client.get(
+            "/asm/export?format=csv",
+            headers={"Authorization": "Bearer not-a-real-token"},
+        )
+        assert resp.status_code == 401
+
+    async def test_empty_tenant_valid_export(self, client, monkeypatch):
+        """No findings -> 200 with headers-only CSV and a valid zeroed PDF."""
+        _patch_discovery(monkeypatch)
+        headers = await _register_and_login(client, "export-empty@test.com", "Export Empty Corp")
+
+        csv_resp = await client.get("/asm/export?format=csv", headers=headers)
+        assert csv_resp.status_code == 200
+        rows = list(csv.reader(io.StringIO(csv_resp.text)))
+        assert len(rows) == 1  # headers only, no error
+
+        pdf_resp = await client.get("/asm/export?format=pdf", headers=headers)
+        assert pdf_resp.status_code == 200
+        assert pdf_resp.content[:4] == b"%PDF"
+
+    async def test_tenant_scoped_content(self, client, monkeypatch):
+        """Tenant B's export never contains tenant A's findings (spec R4)."""
+        _patch_discovery(monkeypatch)
+        headers_a = await _register_and_login(client, "export-iso-a@test.com", "Export Iso A Corp")
+        await _seed_scans(client, headers_a, monkeypatch)
+        headers_b = await _register_and_login(client, "export-iso-b@test.com", "Export Iso B Corp")
+
+        resp_b = await client.get("/asm/export?format=csv", headers=headers_b)
+        assert resp_b.status_code == 200
+        rows = list(csv.reader(io.StringIO(resp_b.text)))
+        assert len(rows) == 1  # headers only — nothing leaks from tenant A
