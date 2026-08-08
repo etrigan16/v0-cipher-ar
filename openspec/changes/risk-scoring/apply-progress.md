@@ -180,9 +180,106 @@ Full suite after all units: `pytest -q` → **131 passed, 2 skipped** (PR1 basel
 | Phase 1 Foundation | 1.1-1.5 | [x] all (PR 1) |
 | Phase 2 Rules + Scoring | 2.1-2.6 | [x] all (PR 1) |
 | Phase 3 API | 3.1-3.6 | [x] all (PR 2) |
-| Phase 4 LLM Enrichment | 4.1-4.5 | [ ] pending (PR 3) |
+| Phase 4 LLM Enrichment | 4.1-4.5 | [x] all (PR 3) |
 | Phase 5 Export | 5.1-5.5 | [ ] pending (PR 4) |
 | Phase 6 Frontend | 6.1-6.6 | [ ] pending (PR 5) |
 | Phase 7 Verification | 7.1-7.2 | [ ] pending |
 
-**17/24 implementation tasks complete through Phase 3.**
+**22/24 implementation tasks complete through Phase 4.**
+
+---
+
+# Apply Progress — risk-scoring (PR 3: Phase 4 LLM Enrichment)
+
+- **Change**: risk-scoring
+- **Batch**: PR 3 of feature-branch-chain (`feature/risk-scoring-p3` → tracker `feature/risk-scoring`; base = `feature/risk-scoring-p2` @ 2cd6840)
+- **Scope**: Phase 4 (LLM Enrichment) — tasks 4.1-4.5 + launch task "pin `openai` in requirements.txt". NO export (PR 4) or frontend (PR 5).
+- **Mode**: Strict TDD (openspec/config.yaml `apply.tdd: true`; pytest 9.1.1, Python 3.11.9, openai 2.53.0)
+- **Artifact store**: hybrid
+- **Date**: 2026-08-08
+- **Commit range**: 2cd6840 (p2 head) → ab6cf3b (3 work-unit commits: 84dcbcd, 4e340d6, ab6cf3b)
+
+## Status (Phase 4)
+
+| Task | Status |
+|------|--------|
+| 4.1 `app/config.py` + `.env.example`: `llm_api_key`/`llm_base_url`/`llm_model`/`llm_timeout` | [x] |
+| 4.2 Create `app/services/llm/enrich.py`: lazy `AsyncOpenAI`, JSON `{remediation, context}`, shape validation, per-type templates | [x] |
+| 4.3 `enrich_scan_findings()`: post-scan batch, skip enriched, per-finding try/except, `enriched_at` on templates | [x] |
+| 4.4 `POST /asm/findings/{id}/enrich` — tenant 404 | [x] |
+| 4.5 RED: `tests/test_llm_enrich.py` (mock): key absent→templates, failure→fallback, bad shape→fallback, enriched skipped | [x] |
+| Launch: pin `openai` in `requirements.txt` | [x] (2.53.0; reportlab stays for PR 4) |
+
+**5/5 Phase 4 tasks complete + launch openai pin.** Cumulative: **22/24 tasks through Phase 4** (Phases 5-7 remain for PRs 4-5 + verify).
+
+## Work Unit Evidence
+
+| Work unit | Focused test command + result | Runtime harness + result | Rollback boundary |
+|-----------|-------------------------------|--------------------------|-------------------|
+| 1. LLM config + openai pin (4.1) | `pytest tests/test_config.py -q` → 5 passed | Settings env resolution (`_env_file=None` + monkeypatch env) — no runtime boundary | Revert 84dcbcd; config defaults, keyless → `llm_enabled=False` (inert) |
+| 2. Enrich service + batch wiring (4.2/4.3/4.5) | `pytest tests/test_llm_enrich.py -q` → 12 passed | Real `run_scan` over SQLite ASGITransport (`_patch_discovery`); findings enriched post-scan via templates (no key) | Revert 4e340d6; new package `llm/` + orchestrator call (additive; keyless → templates) |
+| 3. On-demand endpoint (4.4) | `pytest tests/test_llm_enrich.py::TestOnDemandEnrichEndpoint -q` → 5 passed | Real `POST /asm/findings/{id}/enrich` over SQLite ASGITransport; 200/skip/404/404/401 exercised end-to-end | Revert ab6cf3b; additive endpoint + `asset_context` helper publicized |
+
+Full suite after all units: `pytest -q` → **151 passed, 2 skipped** (PR2 baseline 131 passed, 2 skipped; +20 tests, 0 regressions).
+
+## TDD Cycle Evidence
+
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 4.1 Config | `tests/test_config.py` | Unit | ✅ 2/2 | ✅ Written (3 failed) | ✅ Passed 5/5 | ✅ 3 cases (defaults, key-derived enabled, env overrides) | ➖ None needed |
+| 4.2 Enrich service | `tests/test_llm_enrich.py` | Unit | N/A (new) | ✅ Written (8 failed) | ✅ Passed 12/12 | ✅ 9 cases (template, determinism, unknown type, LLM success, failure, bad shape ×4, no-client) | ✅ Extracted `_build_prompt`, `_call_llm`, `_template_result` |
+| 4.3 Batch + orchestrator | `tests/test_llm_enrich.py` | Integration | ✅ 44/44 | ✅ Written (1 failed) | ✅ Passed 12/12 | ✅ 5 cases (templates, LLM, skip-enriched, failure-continues, run_scan) | ✅ `asset_context` helper with per-batch cache |
+| 4.4 Endpoint | `tests/test_llm_enrich.py` | Integration | ✅ 56/56 | ✅ Written (3 failed) | ✅ Passed 5/5 | ✅ 5 cases (success, skip, cross-tenant 404, unknown 404, 401) | ➖ None needed |
+
+### Test Summary (PR 3)
+- **Total tests written**: 20 net new (config 3, llm enrich 17)
+- **Total tests passing**: 151 (full backend suite) / 2 skipped (RLS, PostgreSQL-only)
+- **Layers used**: Unit (8), Integration (12 via ASGITransport — batch + endpoint exercised end-to-end)
+- **Approval tests** (refactoring): None — no existing behavior changed; orchestrator gained a guarded post-scan call
+- **Pure functions created**: `_build_prompt`, `_template_result` (pure); `enrich_finding`/`enrich_scan_findings`/`asset_context` are async service fns by design
+
+## Files Changed (PR 3)
+
+| File | Action | What Was Done |
+|------|--------|---------------|
+| `backend/app/config.py` | Modified | `llm_api_key` (default ""), `llm_base_url` (Groq), `llm_model` (llama-3.3-70b-versatile), `llm_timeout` (30.0), `llm_enabled` property derived from key presence |
+| `backend/.env.example` | Modified | Documented optional `LLM_*` env vars |
+| `backend/requirements.txt` | Modified | Pinned `openai==2.53.0` (reportlab deferred to PR 4) |
+| `backend/app/services/llm/__init__.py` | Created | Package exports |
+| `backend/app/services/llm/enrich.py` | Created | `enrich_finding` (LLM/template, never raises), `enrich_scan_findings` (batch, skip-enriched, per-finding try/except), `asset_context`, `_build_prompt`, `_template_result`, `_call_llm` (shape validation) |
+| `backend/app/services/orchestrator.py` | Modified | `run_scan` calls `enrich_scan_findings` post-persist/scoring; guarded so enrichment never fails a scan (spec R1) |
+| `backend/app/routes/asm.py` | Modified | `POST /asm/findings/{id}/enrich` — tenant-scoped, 404 on cross-tenant/unknown/malformed, skip-enriched returns current |
+| `backend/tests/test_config.py` | Modified | 3 new LLM-config tests |
+| `backend/tests/test_llm_enrich.py` | Created | 17 tests: templates, LLM success/failure/bad-shape (mocked client), skip-enriched, batch, orchestrator wiring, endpoint (401/404/success/skip) |
+
+## Deviations from Design
+
+1. **No migration 005**: the launch prompt said "prefer new migration 005_llm_enrichment.py" BUT also "check alembic history first" — history shows the alembic head is `004_risk_scoring`, which **already** added `context`, `llm_summary`, `enriched_at`, `remediation` (PR 1, tasks 1.1). The columns exist; a 005 would be a no-op duplicate. No new migration was created.
+2. **Field naming**: launch prompt listed `enriched_description`/`enriched_remediation`; spec R3/design/model are authoritative — the Finding model already has `remediation`, `context`, `llm_summary`, `enriched_at` (migration 004), so enrichment persists into those exact columns.
+3. **Module path**: launch prompt said `app/services/llm.py`; tasks.md 4.2/design/exploration specify `app/services/llm/enrich.py` (package) — implemented per tasks.md/design.
+4. **`asset_context` made public**: `_asset_context` was renamed to `asset_context` so the on-demand route can build the prompt context without reaching into a private helper.
+5. **`llm_enabled` derived**: added as a `Settings` property (not a stored field) per launch prompt "LLM_ENABLED derived from key presence".
+
+## Issues Found
+
+- None blocking. Two RED-era test corrections: (a) `_make_finding(tenant=None)` initially failed on `tenant.id` — unit-test findings now use a fixed dummy tenant uuid (never persisted); (b) `test_batch_skips_already_enriched` first asserted `calls == []` but the second finding IS legitimately enriched via the fake client — corrected to `len(calls) == 1`.
+
+## Next Steps
+
+- PR 4 (Phase 5 export): `reports/generator.py` CSV+PDF (reportlab), `GET /asm/export`, pin `reportlab`.
+- PR 5 (Phase 6 frontend): `lib/api.ts`, dashboard charts, findings page with PATCH UI.
+- Phase 7 verification after all PRs; archive merges deltas.
+
+## Cumulative Task Status (through PR 3)
+
+| Phase | Tasks | Status |
+|-------|-------|--------|
+| Phase 1 Foundation | 1.1-1.5 | [x] all (PR 1) |
+| Phase 2 Rules + Scoring | 2.1-2.6 | [x] all (PR 1) |
+| Phase 3 API | 3.1-3.6 | [x] all (PR 2) |
+| Phase 4 LLM Enrichment | 4.1-4.5 | [x] all (PR 3) |
+| Phase 5 Export | 5.1-5.5 | [ ] pending (PR 4) |
+| Phase 6 Frontend | 6.1-6.6 | [ ] pending (PR 5) |
+| Phase 7 Verification | 7.1-7.2 | [ ] pending |
+
+**22/24 implementation tasks complete through Phase 4.**

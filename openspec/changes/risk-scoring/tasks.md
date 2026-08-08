@@ -56,11 +56,11 @@ Chain strategy: feature-branch-chain
 
 ## Phase 4: LLM Enrichment (PR3)
 
-- [ ] 4.1 `app/config.py` + `.env.example`: `llm_api_key`/`llm_base_url`/`llm_model`/`llm_timeout`
-- [ ] 4.2 Create `app/services/llm/enrich.py`: lazy `AsyncOpenAI`, JSON `{remediation, context}`, shape validation, per-type templates
-- [ ] 4.3 `enrich_scan_findings()`: post-scan batch, skip enriched, per-finding try/except, `enriched_at` on templates
-- [ ] 4.4 `POST /asm/findings/{id}/enrich` — tenant 404
-- [ ] 4.5 RED: `tests/test_llm_enrich.py` (mock): key absent→templates, failure→fallback, bad shape→fallback, enriched skipped
+- [x] 4.1 `app/config.py` + `.env.example`: `llm_api_key`/`llm_base_url`/`llm_model`/`llm_timeout`
+- [x] 4.2 Create `app/services/llm/enrich.py`: lazy `AsyncOpenAI`, JSON `{remediation, context}`, shape validation, per-type templates
+- [x] 4.3 `enrich_scan_findings()`: post-scan batch, skip enriched, per-finding try/except, `enriched_at` on templates
+- [x] 4.4 `POST /asm/findings/{id}/enrich` — tenant 404
+- [x] 4.5 RED: `tests/test_llm_enrich.py` (mock): key absent→templates, failure→fallback, bad shape→fallback, enriched skipped
 
 ## Phase 5: Export (PR4)
 
