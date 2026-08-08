@@ -13,6 +13,7 @@ We deliberately do NOT build sockets/transports ourselves beyond a bounded
 are trivially unit-testable by faking ``http`` and ``ssl``.
 """
 
+import datetime
 import logging
 import re
 import socket
@@ -30,8 +31,16 @@ DEFAULT_SCHEME = "https"
 HTTP_TIMEOUT = 10.0
 TLS_TIMEOUT = 5.0
 
-# Headers we capture verbatim from the HTTP response (lowercased keys).
-CAPTURED_HEADERS = ("server", "x-powered-by")
+# Single-value headers captured verbatim from the HTTP response: response
+# header name -> FingerprintResult attribute name. ``set-cookie`` is captured
+# separately as a multi-value list (see ``_get_set_cookie``).
+HEADER_FIELDS = {
+    "server": "server",
+    "x-powered-by": "x_powered_by",
+    "strict-transport-security": "strict_transport_security",
+    "x-content-type-options": "x_content_type_options",
+    "content-security-policy": "content_security_policy",
+}
 
 _TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
 
@@ -47,7 +56,12 @@ class FingerprintResult:
         title: The HTML ``<title>`` text (unescaped), or ``None``.
         server: The value of the ``Server`` header, or ``None``.
         x_powered_by: The value of the ``X-Powered-By`` header, or ``None``.
-        tls: A dict with ``subject_cn`` and ``subject_alt_names`` from the TLS
+        strict_transport_security: The ``Strict-Transport-Security`` header, or ``None``.
+        x_content_type_options: The ``X-Content-Type-Options`` header, or ``None``.
+        content_security_policy: The ``Content-Security-Policy`` header, or ``None``.
+        set_cookie: A list of ``Set-Cookie`` header values, or ``None``.
+        tls: A dict with ``subject_cn``, ``issuer_cn``, ``subject_alt_names``,
+            ``not_before`` and ``not_after`` (ISO-8601 strings) from the TLS
             peer certificate, or ``None`` if TLS negotiation did not occur.
         findings: Candidate findings (list of dicts) for the orchestrator to
             persist, e.g. ``{"severity": ..., "title": ..., "detail": ...}``.
@@ -62,6 +76,10 @@ class FingerprintResult:
         title: str | None = None,
         server: str | None = None,
         x_powered_by: str | None = None,
+        strict_transport_security: str | None = None,
+        x_content_type_options: str | None = None,
+        content_security_policy: str | None = None,
+        set_cookie: list[str] | None = None,
         tls: dict | None = None,
         findings: list[dict] | None = None,
     ):
@@ -72,6 +90,10 @@ class FingerprintResult:
         self.title = title
         self.server = server
         self.x_powered_by = x_powered_by
+        self.strict_transport_security = strict_transport_security
+        self.x_content_type_options = x_content_type_options
+        self.content_security_policy = content_security_policy
+        self.set_cookie = set_cookie
         self.tls = tls
         self.findings = findings or []
 
@@ -85,6 +107,10 @@ class FingerprintResult:
             "title": self.title,
             "server": self.server,
             "x_powered_by": self.x_powered_by,
+            "strict_transport_security": self.strict_transport_security,
+            "x_content_type_options": self.x_content_type_options,
+            "content_security_policy": self.content_security_policy,
+            "set_cookie": self.set_cookie,
             "tls": self.tls,
         }
 
@@ -125,12 +151,9 @@ async def fingerprint(
             url = f"{scheme}://{hostname}:{port}"
         resp = await client.get(url, follow_redirects=True)
         result.status_code = resp.status_code
-        for header in CAPTURED_HEADERS:
-            value = resp.headers.get(header)
-            if header == "x-powered-by":
-                result.x_powered_by = value
-            else:
-                result.server = value
+        for header, attr in HEADER_FIELDS.items():
+            setattr(result, attr, resp.headers.get(header))
+        result.set_cookie = _get_set_cookie(resp.headers)
         result.title = _extract_title(resp.text)
     except (httpx.HTTPError, httpx.TimeoutException, ValueError) as exc:
         logger.warning("HTTP fingerprint failed for %s:%s (%s): %s", hostname, port, scheme, exc)
@@ -178,24 +201,58 @@ def _get_tls_fingerprint(hostname: str, port: int) -> dict | None:
         return None
 
 
+def _get_set_cookie(headers) -> list[str] | None:
+    """Return all ``Set-Cookie`` header values, or ``None`` when absent.
+
+    ``set-cookie`` is multi-valued; ``Headers.get()`` would collapse it. Uses
+    ``get_list`` when available and falls back to a plain ``get`` for minimal
+    stand-ins so the capture is unit-testable without httpx internals.
+    """
+    get_list = getattr(headers, "get_list", None)
+    if get_list is not None:
+        values = get_list("set-cookie")
+        return [v.strip() for v in values if v] if values else None
+    value = headers.get("set-cookie")
+    return [value.strip()] if value else None
+
+
 def _extract_tls_from_cert(cert: dict) -> dict:
-    """Extract ``subject_cn`` and sorted ``subject_alt_names`` from a cert dict.
+    """Extract subject/issuer CN, SANs and validity window from a cert dict.
 
     Split out from the socket logic so it is unit-testable with a canned
-    certificate without opening any connection.
+    certificate without opening any connection. ``not_before``/``not_after``
+    are returned as ISO-8601 strings (``None`` when absent/unparseable); the
+    fingerprint JSON is plain-dict serializable.
     """
-    subject_cn = None
-    for part in cert.get("subject", ()):  # list of ((key, value), ...)
+    return {
+        "subject_cn": _common_name(cert.get("subject", ())),
+        "issuer_cn": _common_name(cert.get("issuer", ())),
+        "subject_alt_names": sorted(
+            {str(entry[1]) for entry in cert.get("subjectAltName", ())}
+        ),
+        "not_before": _asn1_to_iso(cert.get("notBefore")),
+        "not_after": _asn1_to_iso(cert.get("notAfter")),
+    }
+
+
+def _common_name(rdn_parts) -> str | None:
+    """Pull the ``commonName`` value out of a certificate RDN structure."""
+    for part in rdn_parts:  # ((key, value), ...)
         for key, value in part:
             if key == "commonName":
-                subject_cn = value
-    san = set()
-    for entry in cert.get("subjectAltName", ()):  # (type, value) pairs
-        san.add(str(entry[1]))
-    return {
-        "subject_cn": subject_cn,
-        "subject_alt_names": sorted(san),
-    }
+                return value
+    return None
+
+
+def _asn1_to_iso(value: str | None) -> str | None:
+    """Convert an ASN.1 UTCTime/GeneralizedTime (``20261231235959Z``) to ISO."""
+    if not value:
+        return None
+    try:
+        parsed = datetime.datetime.strptime(value, "%Y%m%d%H%M%SZ")
+    except (ValueError, TypeError):
+        return None
+    return parsed.replace(tzinfo=datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _extract_title(html: str) -> str | None:

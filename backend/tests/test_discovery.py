@@ -20,11 +20,15 @@ from app.services import fingerprint as fp
 
 
 class _FakeResponse:
-    """Minimal stand-in for httpx.Response with status/headers/text/json."""
+    """Minimal stand-in for httpx.Response with status/headers/text/json.
+
+    Headers are wrapped in ``httpx.Headers`` so multi-value headers (e.g.
+    ``set-cookie``) behave exactly as in the real client.
+    """
 
     def __init__(self, status_code=200, headers=None, text="", json_data=None):
         self.status_code = status_code
-        self.headers = headers or {}
+        self.headers = httpx.Headers(headers or {})
         self.text = text
         self._json = json_data
 
@@ -183,11 +187,28 @@ class TestHttpTlsFingerprint:
         responses = [
             _FakeResponse(
                 status_code=200,
-                headers={"server": "nginx", "x-powered-by": "Express"},
+                headers={
+                    "server": "nginx",
+                    "x-powered-by": "Express",
+                    "strict-transport-security": "max-age=31536000",
+                    "x-content-type-options": "nosniff",
+                    "content-security-policy": "default-src 'self'",
+                    "set-cookie": "session=abc; Secure; HttpOnly",
+                },
                 text=html,
             )
         ]
-        monkeypatch.setattr(fp, "_get_tls_fingerprint", lambda h, p: {"subject_cn": "*.example.com", "subject_alt_names": ["example.com"]})
+        monkeypatch.setattr(
+            fp,
+            "_get_tls_fingerprint",
+            lambda h, p: {
+                "subject_cn": "*.example.com",
+                "subject_alt_names": ["example.com"],
+                "issuer_cn": "Let's Encrypt",
+                "not_before": "2026-01-01T00:00:00Z",
+                "not_after": "2026-12-31T23:59:59Z",
+            },
+        )
         result = await fp.fingerprint("www.example.com", http=_FakeHTTP(responses))
 
         d = result.to_dict()
@@ -196,8 +217,43 @@ class TestHttpTlsFingerprint:
         assert d["title"] == "Example Home"
         assert d["server"] == "nginx"
         assert d["x_powered_by"] == "Express"
+        # New security-header capture (R-Fingerprint/Headers).
+        assert d["strict_transport_security"] == "max-age=31536000"
+        assert d["x_content_type_options"] == "nosniff"
+        assert d["content_security_policy"] == "default-src 'self'"
+        assert d["set_cookie"] == ["session=abc; Secure; HttpOnly"]
         assert d["tls"]["subject_cn"] == "*.example.com"
         assert d["tls"]["subject_alt_names"] == ["example.com"]
+        # New TLS validity/issuer capture (R-Fingerprint/Cert).
+        assert d["tls"]["issuer_cn"] == "Let's Encrypt"
+        assert d["tls"]["not_before"] == "2026-01-01T00:00:00Z"
+        assert d["tls"]["not_after"] == "2026-12-31T23:59:59Z"
+
+    @pytest.mark.asyncio
+    async def test_multiple_set_cookie_headers_captured(self, monkeypatch):
+        responses = [
+            _FakeResponse(
+                status_code=200,
+                headers=httpx.Headers(
+                    [("set-cookie", "a=1; Secure"), ("set-cookie", "b=2; HttpOnly")]
+                ),
+                text="",
+            )
+        ]
+        monkeypatch.setattr(fp, "_get_tls_fingerprint", lambda h, p: None)
+        result = await fp.fingerprint("www.example.com", http=_FakeHTTP(responses))
+        assert result.set_cookie == ["a=1; Secure", "b=2; HttpOnly"]
+
+    @pytest.mark.asyncio
+    async def test_missing_security_headers_are_none(self, monkeypatch):
+        responses = [_FakeResponse(status_code=200, headers={"server": "nginx"}, text="")]
+        monkeypatch.setattr(fp, "_get_tls_fingerprint", lambda h, p: None)
+        result = await fp.fingerprint("www.example.com", http=_FakeHTTP(responses))
+        d = result.to_dict()
+        assert d["strict_transport_security"] is None
+        assert d["x_content_type_options"] is None
+        assert d["content_security_policy"] is None
+        assert d["set_cookie"] is None
 
     @pytest.mark.asyncio
     async def test_unreachable_host_never_raises(self, monkeypatch):
@@ -221,4 +277,38 @@ class TestHttpTlsFingerprint:
         assert fp._extract_tls_from_cert(fake_cert) == {
             "subject_cn": "api.example.com",
             "subject_alt_names": ["api.example.com", "www.example.com"],
+            "issuer_cn": None,
+            "not_before": None,
+            "not_after": None,
         }
+
+    def test_tls_fingerprint_includes_validity_and_issuer(self):
+        """R-Fingerprint/Cert: not_before/not_after/issuer_cn extracted."""
+        fake_cert = {
+            "subject": ((("commonName", "api.example.com"),),),
+            "issuer": ((("commonName", "Fake CA"),),),
+            "subjectAltName": (("DNS", "api.example.com"), ("DNS", "www.example.com")),
+            "notBefore": "20260101000000Z",
+            "notAfter": "20261231235959Z",
+        }
+        assert fp._extract_tls_from_cert(fake_cert) == {
+            "subject_cn": "api.example.com",
+            "issuer_cn": "Fake CA",
+            "subject_alt_names": ["api.example.com", "www.example.com"],
+            "not_before": "2026-01-01T00:00:00Z",
+            "not_after": "2026-12-31T23:59:59Z",
+        }
+
+    def test_tls_validity_unparseable_becomes_none(self):
+        """Malformed ASN.1 times degrade to None instead of raising."""
+        fake_cert = {
+            "subject": (),
+            "issuer": (),
+            "subjectAltName": (),
+            "notBefore": "garbage",
+            "notAfter": None,
+        }
+        result = fp._extract_tls_from_cert(fake_cert)
+        assert result["not_before"] is None
+        assert result["not_after"] is None
+        assert result["issuer_cn"] is None
