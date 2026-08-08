@@ -26,7 +26,7 @@ from app.models.tenant import Tenant
 from app.services import orchestrator
 from app.services.llm import enrich as enrich_service
 
-from test_asm import _patch_discovery
+from test_asm import _patch_discovery, _register_and_login
 
 
 # ---------------------------------------------------------------------------
@@ -358,3 +358,83 @@ class TestBatchEnrichment:
             assert finding.enriched_at is not None
             assert finding.context
             assert finding.remediation
+
+
+# ---------------------------------------------------------------------------
+# On-demand endpoint — spec R2 "On-demand enrich", R4 skip
+# ---------------------------------------------------------------------------
+
+
+class TestOnDemandEnrichEndpoint:
+    """POST /asm/findings/{id}/enrich — auth, tenant scope, skip-enriched."""
+
+    async def test_on_demand_enrich_success(self, client, monkeypatch):
+        """R2/OnDemand: the owner enriches one finding and gets the updated row."""
+        _patch_discovery(monkeypatch)
+        headers = await _register_and_login(client, "enrich-ok@test.com", "Enrich Ok Corp")
+        await client.post("/asm/scans", json={"domain": "example.com"}, headers=headers)
+
+        findings = (await client.get("/asm/findings", headers=headers)).json()["findings"]
+        target = findings[0]
+
+        resp = await client.post(f"/asm/findings/{target['id']}/enrich", headers=headers)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["id"] == target["id"]
+        assert body["enriched_at"] is not None
+        assert body["remediation"]  # persisted (template or LLM output)
+
+        # Persisted on the row, not just returned in the response.
+        after = (await client.get("/asm/findings", headers=headers)).json()["findings"]
+        refreshed = next(f for f in after if f["id"] == target["id"])
+        assert refreshed["enriched_at"] is not None
+
+    async def test_on_demand_skips_already_enriched(self, client, monkeypatch):
+        """R4/OnDemandSkip: a second call does not re-enrich; returns current values."""
+        _patch_discovery(monkeypatch)
+        headers = await _register_and_login(client, "enrich-skip@test.com", "Enrich Skip Corp")
+        await client.post("/asm/scans", json={"domain": "example.com"}, headers=headers)
+
+        findings = (await client.get("/asm/findings", headers=headers)).json()["findings"]
+        target = findings[0]
+
+        first = await client.post(f"/asm/findings/{target['id']}/enrich", headers=headers)
+        first_enriched_at = first.json()["enriched_at"]
+        first_remediation = first.json()["remediation"]
+
+        # Second call: already-enriched -> returns the same values unchanged.
+        second = await client.post(f"/asm/findings/{target['id']}/enrich", headers=headers)
+        assert second.status_code == 200
+        assert second.json()["enriched_at"] == first_enriched_at
+        assert second.json()["remediation"] == first_remediation
+
+    async def test_on_demand_cross_tenant_404(self, client, monkeypatch):
+        """R2/CrossTenant: another tenant's finding -> 404, no leak."""
+        _patch_discovery(monkeypatch)
+        headers_a = await _register_and_login(client, "enrich-iso-a@test.com", "Enrich Iso A Corp")
+        await client.post("/asm/scans", json={"domain": "owner.com"}, headers=headers_a)
+        findings = (await client.get("/asm/findings", headers=headers_a)).json()["findings"]
+        target = findings[0]
+
+        headers_b = await _register_and_login(client, "enrich-iso-b@test.com", "Enrich Iso B Corp")
+        resp = await client.post(f"/asm/findings/{target['id']}/enrich", headers=headers_b)
+        assert resp.status_code == 404
+
+    async def test_on_demand_unknown_404(self, client):
+        """R2/Unknown: nonexistent/malformed ids -> 404."""
+        headers = await _register_and_login(client, "enrich-missing@test.com", "Enrich Missing Corp")
+        resp = await client.post(
+            "/asm/findings/00000000-0000-0000-0000-000000000000/enrich", headers=headers
+        )
+        assert resp.status_code == 404
+
+        malformed = await client.post("/asm/findings/not-a-uuid/enrich", headers=headers)
+        assert malformed.status_code == 404
+
+    async def test_on_demand_requires_auth(self, client):
+        """R2/Unauth: no valid token -> 401."""
+        resp = await client.post(
+            "/asm/findings/00000000-0000-0000-0000-000000000000/enrich",
+            headers={"Authorization": "Bearer not-a-real-token"},
+        )
+        assert resp.status_code == 401

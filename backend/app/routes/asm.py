@@ -23,6 +23,7 @@ from app.models.finding import Finding
 from app.models.scan import Scan
 from app.models.user import User
 from app.routes.auth import get_current_user
+from app.services.llm.enrich import asset_context, enrich_finding as llm_enrich_finding
 from app.services.orchestrator import recompute_asset_risk, run_scan
 
 router = APIRouter(prefix="/asm", tags=["asm"])
@@ -381,6 +382,49 @@ async def update_finding_status(
 
     finding.status = body.status
     await recompute_asset_risk(db, finding.asset_id)
+    await db.commit()
+    await db.refresh(finding)
+    return _finding_dto(finding)
+
+
+@router.post("/findings/{finding_id}/enrich")
+async def enrich_finding_on_demand(
+    finding_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Enrich one finding on demand and persist the result (spec R2/R3).
+
+    Tenant-scoped: a cross-tenant or unknown id returns 404 with no data
+    leak, exactly like the PATCH route. Already-enriched findings are NOT
+    re-enriched (spec R4 — DB acts as cache; non-determinism + cost guard);
+    the current values are returned unchanged. Missing LLM key or a failed
+    call degrades to templates, so the endpoint always returns a finding.
+    """
+    parsed = _coerce_uuid(finding_id)
+    if parsed is None:
+        raise HTTPException(status_code=404, detail="Finding not found")
+
+    result = await db.execute(
+        select(Finding).where(
+            Finding.id == parsed,
+            Finding.tenant_id == user.tenant_id,
+        )
+    )
+    finding = result.scalar_one_or_none()
+    if finding is None:
+        raise HTTPException(status_code=404, detail="Finding not found")
+
+    if finding.enriched_at is not None:
+        await db.refresh(finding)
+        return _finding_dto(finding)
+
+    ctx = await asset_context(db, finding.asset_id)
+    out = await llm_enrich_finding(finding, asset_context=ctx)
+    finding.remediation = out.remediation
+    finding.context = out.context
+    finding.llm_summary = out.llm_summary
+    finding.enriched_at = out.enriched_at
     await db.commit()
     await db.refresh(finding)
     return _finding_dto(finding)

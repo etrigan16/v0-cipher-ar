@@ -202,7 +202,7 @@ def _template_result(finding: Finding, now: datetime.datetime) -> EnrichmentResu
     )
 
 
-async def _asset_context(db: AsyncSession, asset_id, cache: dict | None = None) -> dict:
+async def asset_context(db: AsyncSession, asset_id, cache: dict | None = None) -> dict:
     """Resolve the Asset's hostname/domain/port for the prompt (cached per batch)."""
     if cache is not None and asset_id in cache:
         return cache[asset_id]
@@ -237,7 +237,7 @@ async def enrich_scan_findings(db: AsyncSession, scan_id) -> int:
         if finding.enriched_at is not None:
             continue  # skip-already-enriched: cost + non-determinism guard
         try:
-            ctx = await _asset_context(db, finding.asset_id, cache=asset_cache)
+            ctx = await asset_context(db, finding.asset_id, cache=asset_cache)
             out = await enrich_finding(finding, asset_context=ctx)
         except Exception as exc:  # noqa: BLE001 - one failure never aborts the batch
             logger.exception("Enrichment failed for finding %s: %s", finding.id, exc)
