@@ -64,11 +64,11 @@ Chain strategy: feature-branch-chain
 
 ## Phase 5: Export (PR4)
 
-- [ ] 5.1 Create `app/services/reports/generator.py`: `csv_report()` — stdlib, headers asset/title/severity/risk_score/status/remediation/discovered_at, headers-only when empty
-- [ ] 5.2 `pdf_report()` — reportlab platypus, title/severity dist/avg-max/top findings+remediation, zeroed when empty
-- [ ] 5.3 `GET /asm/export?format=csv|pdf` — Content-Type/Disposition; bad format 400
-- [ ] 5.4 RED: `tests/test_export.py` — CSV headers/UTF-8, PDF `%PDF`, empty, tenant scoping
-- [ ] 5.5 Pin `openai`, `reportlab` in `requirements.txt`
+- [x] 5.1 Create `app/services/reports/generator.py`: `csv_report()` — stdlib, headers asset/title/severity/risk_score/status/remediation/discovered_at, headers-only when empty
+- [x] 5.2 `pdf_report()` — reportlab platypus, title/severity dist/avg-max/top findings+remediation, zeroed when empty
+- [x] 5.3 `GET /asm/export?format=csv|pdf` — Content-Type/Disposition; bad format 400
+- [x] 5.4 RED: `tests/test_export.py` — CSV headers/UTF-8, PDF `%PDF`, empty, tenant scoping
+- [x] 5.5 Pin `openai`, `reportlab` in `requirements.txt`
 
 ## Phase 6: Frontend (PR5)
 

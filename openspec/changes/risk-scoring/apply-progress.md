@@ -283,3 +283,94 @@ Full suite after all units: `pytest -q` → **151 passed, 2 skipped** (PR2 basel
 | Phase 7 Verification | 7.1-7.2 | [ ] pending |
 
 **22/24 implementation tasks complete through Phase 4.**
+
+---
+
+# Apply Progress — risk-scoring (PR 4: Phase 5 Export)
+
+- **Change**: risk-scoring
+- **Batch**: PR 4 of feature-branch-chain (`feature/risk-scoring-p4` → tracker `feature/risk-scoring`; base = `feature/risk-scoring-p3` @ 52de078)
+- **Scope**: Phase 5 (Export) — tasks 5.1-5.5 + launch task "pin `reportlab`". NO frontend (PR 5).
+- **Mode**: Strict TDD (openspec/config.yaml `apply.tdd: true`; pytest 9.1.1, Python 3.11.9, reportlab 5.0.0)
+- **Artifact store**: hybrid
+- **Date**: 2026-08-08
+- **Commit range**: 52de078 (p3 head) → e7e58e9 (2 work-unit commits: 653887c, e7e58e9)
+
+## Status (Phase 5)
+
+| Task | Status |
+|------|--------|
+| 5.1 Create `app/services/reports/generator.py`: `generate_csv()` — stdlib, headers asset/title/severity/risk_score/status/remediation/discovered_at, headers-only when empty | [x] |
+| 5.2 `generate_pdf(findings, tenant_name)` — reportlab platypus, title/severity dist/avg-max/top findings+remediation, zeroed when empty | [x] |
+| 5.3 `GET /asm/export?format=csv\|pdf` — Content-Type/Disposition; bad format 400 | [x] |
+| 5.4 RED: `tests/test_export.py` — CSV headers/UTF-8, PDF `%PDF`, empty, tenant scoping | [x] |
+| 5.5 Pin `reportlab` in `requirements.txt` (`openai` was pinned in PR 3) | [x] (reportlab==5.0.0) |
+
+**5/5 Phase 5 tasks complete.** Cumulative: **27/27 tasks through Phase 5** (Phases 6-7 remain for PR 5 + verify).
+
+## Work Unit Evidence
+
+| Work unit | Focused test command + result | Runtime harness + result | Rollback boundary |
+|-----------|-------------------------------|--------------------------|-------------------|
+| 1. Report generators + reportlab pin (5.1/5.2/5.5) | `pytest tests/test_export.py -k "TestCsvGenerator or TestPdfGenerator" -q` → 7 passed | Real `generate_pdf`/`generate_csv` run in-process; PDF bytes verified `%PDF` + text extraction (ASCII85→Flate decode) | Revert 653887c; new package `reports/` + pin (additive; no existing behavior touched) |
+| 2. Export endpoint (5.3) | `pytest tests/test_export.py::TestExportEndpoint -q` → 7 passed | Real `GET /asm/export` over SQLite ASGITransport with `_patch_discovery`/`_seed_scans`; 200 csv/pdf, 400 invalid+missing, 401, empty, cross-tenant isolation end-to-end | Revert e7e58e9; additive endpoint, no existing route touched |
+
+Full suite after all units: `pytest -q` → **165 passed, 2 skipped** (PR3 baseline 151 passed, 2 skipped; +14 tests, 0 regressions).
+
+## TDD Cycle Evidence
+
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 5.1 CSV generator | `tests/test_export.py::TestCsvGenerator` | Unit (pure) | N/A (new) | ✅ Written (collection error — module absent) | ✅ Passed 5/5 | ✅ 5 cases (headers/empty, values, escaping, UTF-8, unscored) | ➖ None needed |
+| 5.2 PDF generator | `tests/test_export.py::TestPdfGenerator` | Unit (pure) | N/A (new) | ✅ Written (2 failed — extraction helper) | ✅ Passed 2/2 | ✅ 2 cases (real data w/ exact avg/max, empty zeroed) | ✅ Decode helper generalized to ASCII85+Flate after RED |
+| 5.3 Export endpoint | `tests/test_export.py::TestExportEndpoint` | Integration | ✅ 44/44 (test_asm) | ✅ Written (7 failed — route 404) | ✅ Passed 7/7 | ✅ 7 cases (csv, pdf, invalid 400, missing 400, 401, empty, tenant scope) | ➖ None needed |
+
+### Test Summary (PR 4)
+- **Total tests written**: 14 net new in `tests/test_export.py` (CSV 5, PDF 2, endpoint 7)
+- **Total tests passing**: 165 (full backend suite) / 2 skipped (RLS, PostgreSQL-only)
+- **Layers used**: Unit (7 via pure generators), Integration (7 via ASGITransport)
+- **Approval tests** (refactoring): None — no existing behavior changed
+- **Pure functions created**: `generate_csv`, `generate_pdf`, `_fmt_number`, `_fmt_datetime` (pure); endpoint is async DB-bound by design
+
+## Files Changed (PR 4)
+
+| File | Action | What Was Done |
+|------|--------|---------------|
+| `backend/requirements.txt` | Modified | Pinned `reportlab==5.0.0` (pure-Python, slim-Docker-safe; openai pin from PR 3 untouched) |
+| `backend/app/services/reports/__init__.py` | Created | Package exports: `ExportFinding`, `generate_csv`, `generate_pdf` |
+| `backend/app/services/reports/generator.py` | Created | `ExportFinding` dataclass; `generate_csv` (stdlib csv, fixed R1 headers, `\n` EOL, headers-only when empty); `generate_pdf` (reportlab platypus A4 — dark title band, Risk Summary with severity distribution + avg/max, findings table sorted by risk desc incl. remediation, zeroed metrics + no-findings note when empty); `_fmt_number`/`_fmt_datetime` |
+| `backend/app/routes/asm.py` | Modified | `GET /asm/export?format=csv\|pdf` — tenant-scoped join with Asset, 400 on invalid/missing format, `Response` with text/csv or application/pdf + attachment Content-Disposition; imports `Response`, `Tenant`, reports package |
+| `backend/tests/test_export.py` | Created | 14 tests: CSV headers/values/escaping/UTF-8/unscored-empty-cell; PDF `%PDF` + text-token extraction (ASCII85→Flate decode helper) for real/empty data; endpoint csv/pdf 200 + content-type + disposition, invalid/missing 400, 401, empty export, cross-tenant isolation |
+
+## Deviations from Design
+
+1. **CSV header set**: launch prompt listed columns `(severity, risk_score, title, asset, detail, remediation, status, discovered_at)`; spec R1 + design Export section are authoritative — implemented exactly as `asset, finding title, severity, risk_score, status, remediation, discovered_at` (no `detail` column, per design).
+2. **Function names**: launch prompt uses `generate_csv(findings)` / `generate_pdf(findings, tenant_name)`; tasks.md 5.1/5.2 call them `csv_report()`/`pdf_report()`. Implemented per the launch prompt (the operative PR-4 instruction); `reports/__init__.py` re-exports them.
+3. **PDF findings table includes a remediation column** (Severity, Risk Score, Title, Asset, Status, Remediation) — the prompt enumerated 5 columns, but spec R2 requires "top findings with remediation"; the column satisfies both.
+4. **PDF summary includes max risk** alongside avg (prompt said "counts by severity, avg risk") — spec R2 requires "average and maximum risk".
+5. **Missing `format` → 400**: spec R3 says "invalid or missing format MUST return 400"; implemented `format: str | None` with a manual 400 check (a `Literal` param would yield 422 instead).
+6. **CSV EOL normalized to `\n`** for deterministic cross-platform output (RFC 4180 default `\r\n` varies by OS).
+
+## Issues Found
+
+- **reportlab 5.0 encodes content streams with `[ /ASCII85Decode /FlateDecode ]`** (the stream is ASCII85-encoded then zlib-compressed, and there is no newline before `endstream`). The RED PDF tests initially failed on the raw-extraction helper; fixed by generalizing `_decode_pdf_stream` to try ASCII85→Flate, bare Flate, then raw. This is test-side only — the generated PDFs are valid (viewers decode the standard filter chain).
+- One test-authoring bug during RED: `_pdf_text_tokens` called `base64.a85decode` before `import base64` — the NameError was silently swallowed by the decode fallback chain; fixed by importing `base64`.
+
+## Next Steps
+
+- PR 5 (Phase 6 frontend): `lib/api.ts` export URL + findings/dashboard UI with PATCH.
+- Phase 7 verification after all PRs; archive merges deltas.
+
+## Cumulative Task Status (through PR 4)
+
+| Phase | Tasks | Status |
+|-------|-------|--------|
+| Phase 1 Foundation | 1.1-1.5 | [x] all (PR 1) |
+| Phase 2 Rules + Scoring | 2.1-2.6 | [x] all (PR 1) |
+| Phase 3 API | 3.1-3.6 | [x] all (PR 2) |
+| Phase 4 LLM Enrichment | 4.1-4.5 | [x] all (PR 3) |
+| Phase 5 Export | 5.1-5.5 | [x] all (PR 4) |
+| Phase 6 Frontend | 6.1-6.6 | [ ] pending (PR 5) |
+| Phase 7 Verification | 7.1-7.2 | [ ] pending |
+
+**27/29 tasks complete through Phase 5.**
