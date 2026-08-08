@@ -21,6 +21,10 @@ python-slugify==8.0.4
 # (ADR-005); key is optional — enrichment degrades to templates when absent.
 openai==2.53.0
 
+# Report export (Phase 5 — PR 4). Pure-Python PDF generation, slim-Docker-safe
+# (design D5); no system native deps required.
+reportlab==5.0.0
+
 # Test dependencies (pytest harness; see backend/pytest.ini)
 pytest==9.1.1
 pytest-asyncio==1.4.0
