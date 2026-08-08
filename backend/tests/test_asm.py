@@ -299,27 +299,44 @@ class _FakeResolution:
         self.hostname = "www.example.com"
 
 
+def _fingerprint(**overrides) -> dict:
+    """Build a fingerprint dict; the default fires the 3 missing-header rules."""
+    fp = {
+        "hostname": "www.example.com",
+        "port": 443,
+        "scheme": "https",
+        "status_code": 200,
+        "title": "Example",
+        "server": "nginx",
+        "x_powered_by": None,
+        "strict_transport_security": None,
+        "x_content_type_options": None,
+        "content_security_policy": None,
+        "set_cookie": None,
+        "tls": {
+            "subject_cn": "*.example.com",
+            "issuer_cn": "Let's Encrypt",
+            "subject_alt_names": ["example.com"],
+            "not_before": "2026-01-01T00:00:00Z",
+            "not_after": "2027-01-01T00:00:00Z",
+        },
+    }
+    fp.update(overrides)
+    return fp
+
+
 class _FakeFingerprint:
     """Stand-in for a FingerprintResult: to_dict() + .findings."""
 
-    def __init__(self, findings=None):
-        self._findings = findings or []
+    def __init__(self, fingerprint=None):
+        self._fingerprint = fingerprint if fingerprint is not None else _fingerprint()
 
     def to_dict(self):
-        return {
-            "hostname": "www.example.com",
-            "port": 443,
-            "scheme": "https",
-            "status_code": 200,
-            "title": "Example",
-            "server": "nginx",
-            "x_powered_by": None,
-            "tls": {"subject_cn": "*.example.com", "subject_alt_names": ["example.com"]},
-        }
+        return self._fingerprint
 
     @property
     def findings(self):
-        return self._findings
+        return []
 
 
 async def _register_and_login(client, email: str, company: str) -> dict:
@@ -343,9 +360,14 @@ async def _register_and_login(client, email: str, company: str) -> dict:
 def _patch_discovery(
     monkeypatch,
     subdomains=None,
-    findings=None,
+    fingerprint=None,
 ):
-    """Patch the orchestrator's discovery deps with deterministic fakes."""
+    """Patch the orchestrator's discovery deps with deterministic fakes.
+
+    Findings are now rule-driven: the fake fingerprint's ``to_dict()`` feeds
+    ``finding_rules.evaluate``, so tests control which rules fire by choosing
+    the fingerprint dict.
+    """
     subdomains = subdomains if subdomains is not None else ["www.example.com"]
 
     async def _enumerate(domain):
@@ -355,7 +377,7 @@ def _patch_discovery(
         return _FakeResolution(ips=["203.0.113.10"])
 
     async def _fingerprint(hostname, **kwargs):
-        return _FakeFingerprint(findings=findings)
+        return _FakeFingerprint(fingerprint=fingerprint)
 
     monkeypatch.setattr(orchestrator.crtsh_service, "enumerate_subdomains", _enumerate)
     monkeypatch.setattr(orchestrator.dns_service, "resolve", _resolve)
@@ -384,7 +406,7 @@ class TestScanLifecycle:
 
     async def test_scan_created_and_completed(self, client, monkeypatch):
         """R-TriggerScan/Valid: discovery persists assets and scan completes."""
-        _patch_discovery(monkeypatch, findings=[{"severity": "medium", "title": "Missing HSTS", "detail": "No HSTS"}])
+        _patch_discovery(monkeypatch)
         headers = await _register_and_login(client, "lifecycle@test.com", "Lifecycle Corp")
 
         resp = await client.post("/asm/scans", json={"domain": "example.com"}, headers=headers)
@@ -404,12 +426,17 @@ class TestScanLifecycle:
         assert asset["service"] == "https"
         assert asset["fingerprint"]["server"] == "nginx"
 
-        # Finding is recorded and linked via /asm/results.
+        # Rule-driven findings are recorded and linked via /asm/results. The
+        # default fake fingerprint is https without HSTS/XCTO/CSP, so exactly
+        # those three rules fire.
         results = await client.get(f"/asm/results/{body['scan']['id']}", headers=headers)
         assert results.status_code == 200
         findings = results.json()["findings"]
-        assert len(findings) == 1
-        assert findings[0]["title"] == "Missing HSTS"
+        assert len(findings) == 3
+        titles = {f["title"] for f in findings}
+        assert "Missing Strict-Transport-Security header" in titles
+        assert "Missing X-Content-Type-Options header" in titles
+        assert "Missing Content-Security-Policy header" in titles
 
 
 class TestScanUpsert:
@@ -506,9 +533,9 @@ class TestStats:
 
         await client.post("/asm/scans", json={"domain": "a-domain.com"}, headers=headers_a)
 
-        # Tenant A: 1 asset (www.example.com), 0 findings, 1 scan.
+        # Tenant A: 1 asset, 3 rule-driven findings, 1 scan.
         body_a = (await client.get("/asm/stats", headers=headers_a)).json()
-        assert body_a == {"assets": 1, "findings": 0, "scans": 1}
+        assert body_a == {"assets": 1, "findings": 3, "scans": 1}
 
         # Tenant B has no data — counts are zero, nothing leaks from A.
         body_b = (await client.get("/asm/stats", headers=headers_b)).json()
@@ -540,3 +567,159 @@ class TestUnauthenticated:
         headers = await _register_and_login(client, "ok@test.com", "Ok Corp")
         listed = await client.get("/asm/assets", headers=headers)
         assert listed.json()["assets"] == []
+
+
+class TestRiskScoringOrchestration:
+    """run_scan evaluates rules, scores findings and recomputes Asset.risk_score."""
+
+    async def test_scan_persists_scored_findings_and_asset_risk(
+        self, db_session: AsyncSession, tenant, monkeypatch
+    ):
+        """R-Rules/Scan: findings persist with score/level/status + asset aggregate."""
+        _patch_discovery(monkeypatch)
+        scan = await orchestrator.run_scan(
+            db_session, tenant_id=tenant.id, domain="example.com"
+        )
+        assert scan.status == "completed"
+
+        findings = (
+            await db_session.execute(select(Finding).where(Finding.scan_id == scan.id))
+        ).scalars().all()
+        assert len(findings) == 3
+        by_type = {f.finding_type: f for f in findings}
+        assert set(by_type) == {"missing-hsts", "missing-xcto", "missing-csp"}
+
+        # Scores are deterministic: medium 5 + 0.5 header modifier.
+        assert by_type["missing-hsts"].risk_score == 5.5
+        assert by_type["missing-hsts"].risk_level == "medium"
+        assert by_type["missing-hsts"].status == "open"
+        assert by_type["missing-hsts"].remediation  # template attached
+        assert by_type["missing-xcto"].risk_score == 2.5
+        assert by_type["missing-xcto"].risk_level == "low"
+
+        # Asset aggregate recomputed = max of open findings (5.5).
+        asset = (
+            await db_session.execute(select(Asset).where(Asset.tenant_id == tenant.id))
+        ).scalar_one()
+        assert asset.risk_score == 5.5
+
+    async def test_scan_scores_nonstandard_port_and_version_findings(
+        self, db_session: AsyncSession, tenant, monkeypatch
+    ):
+        """Modifiers apply per finding_type during a real scan."""
+        _patch_discovery(
+            monkeypatch,
+            fingerprint=_fingerprint(
+                strict_transport_security="max-age=31536000",
+                x_content_type_options="nosniff",
+                content_security_policy="default-src 'self'",
+                port=8443,
+                server="nginx/1.24.0",
+            ),
+        )
+        scan = await orchestrator.run_scan(
+            db_session, tenant_id=tenant.id, domain="example.com"
+        )
+        findings = (
+            await db_session.execute(select(Finding).where(Finding.scan_id == scan.id))
+        ).scalars().all()
+        by_type = {f.finding_type: f for f in findings}
+        assert set(by_type) == {"nonstandard-port", "server-version-disclosure"}
+        # nonstandard-port: medium 5 + 1.5 exposed = 6.5 (max).
+        assert by_type["nonstandard-port"].risk_score == 6.5
+        # version disclosure: low 2 + 0.5 = 2.5.
+        assert by_type["server-version-disclosure"].risk_score == 2.5
+
+        asset = (
+            await db_session.execute(select(Asset).where(Asset.tenant_id == tenant.id))
+        ).scalar_one()
+        assert asset.risk_score == 6.5
+
+    async def test_recompute_asset_risk_max_of_open_findings(
+        self, db_session: AsyncSession, tenant
+    ):
+        """R-Aggregate: risk_score = max of OPEN findings; resolved excluded."""
+        asset = Asset(
+            tenant_id=tenant.id, domain="example.com", subdomain="www.example.com"
+        )
+        scan = Scan(tenant_id=tenant.id, domain="example.com", status="completed")
+        db_session.add_all([asset, scan])
+        await db_session.commit()
+        await db_session.refresh(asset)
+        await db_session.refresh(scan)
+
+        db_session.add_all(
+            [
+                Finding(
+                    tenant_id=tenant.id, asset_id=asset.id, scan_id=scan.id,
+                    severity="high", title="a", finding_type="tls-expired",
+                    risk_score=7.5, risk_level="high", status="open",
+                ),
+                Finding(
+                    tenant_id=tenant.id, asset_id=asset.id, scan_id=scan.id,
+                    severity="medium", title="b", finding_type="missing-csp",
+                    risk_score=3.2, risk_level="medium", status="open",
+                ),
+                Finding(
+                    tenant_id=tenant.id, asset_id=asset.id, scan_id=scan.id,
+                    severity="critical", title="c", finding_type="nonstandard-port",
+                    risk_score=9.0, risk_level="critical", status="resolved",
+                ),
+            ]
+        )
+        await db_session.commit()
+
+        new_value = await orchestrator.recompute_asset_risk(db_session, asset.id)
+        assert new_value == 7.5
+        await db_session.refresh(asset)
+        assert asset.risk_score == 7.5
+
+    async def test_recompute_asset_risk_zero_without_open(
+        self, db_session: AsyncSession, tenant
+    ):
+        """R-Aggregate/Empty: no open findings -> 0.0, not NULL."""
+        asset = Asset(
+            tenant_id=tenant.id, domain="example.com", subdomain="www.example.com"
+        )
+        db_session.add(asset)
+        await db_session.commit()
+        await db_session.refresh(asset)
+
+        new_value = await orchestrator.recompute_asset_risk(db_session, asset.id)
+        assert new_value == 0.0
+        await db_session.refresh(asset)
+        assert asset.risk_score == 0.0
+
+
+class TestRescanOverwrite:
+    """Re-scan overwrites prior findings; aggregate reflects the latest scan."""
+
+    async def test_rescan_overwrites_prior_findings(self, client, monkeypatch):
+        """R-Aggregate/Rescan: old findings replaced, no history kept."""
+        _patch_discovery(monkeypatch)  # default -> 3 missing-header findings
+        headers = await _register_and_login(client, "overwrite@test.com", "Overwrite Corp")
+
+        first = await client.post("/asm/scans", json={"domain": "example.com"}, headers=headers)
+        first_scan_id = first.json()["scan"]["id"]
+        first_results = await client.get(f"/asm/results/{first_scan_id}", headers=headers)
+        assert len(first_results.json()["findings"]) == 3
+
+        # Second scan with a healthy fingerprint except a non-standard port:
+        # only nonstandard-port fires -> the old findings are overwritten.
+        _patch_discovery(
+            monkeypatch,
+            fingerprint=_fingerprint(
+                strict_transport_security="max-age=31536000",
+                x_content_type_options="nosniff",
+                content_security_policy="default-src 'self'",
+                set_cookie=["session=abc; Secure; HttpOnly"],
+                port=8443,
+                server="nginx",
+            ),
+        )
+        second = await client.post("/asm/scans", json={"domain": "example.com"}, headers=headers)
+        second_scan_id = second.json()["scan"]["id"]
+        second_results = await client.get(f"/asm/results/{second_scan_id}", headers=headers)
+        findings = second_results.json()["findings"]
+        assert len(findings) == 1
+        assert findings[0]["title"] == "Exposed service on non-standard port 8443"

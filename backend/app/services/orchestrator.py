@@ -19,7 +19,7 @@ import json
 import logging
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -29,6 +29,8 @@ from app.models.scan import Scan
 from app.services import dns as dns_service
 from app.services import enumerate as crtsh_service
 from app.services import fingerprint as fp_service
+from app.services import finding_rules as rules_service
+from app.services.scoring import engine as scoring_engine
 
 logger = logging.getLogger(__name__)
 
@@ -117,17 +119,63 @@ async def _process_subdomain(
         fingerprint=fr.to_dict(),
     )
 
-    for cand in fr.findings:
+    await _persist_findings(db, scan, tenant_id, asset, fr)
+    await recompute_asset_risk(db, asset.id)
+
+
+async def _persist_findings(
+    db: AsyncSession,
+    scan: Scan,
+    tenant_id,
+    asset: Asset,
+    fr,
+) -> None:
+    """Evaluate rules on the fingerprint, score candidates, persist Finding rows.
+
+    Re-scan semantics (spec R3): the asset's previous findings are removed
+    first, so the persisted set reflects the current scan — no history kept.
+    """
+    await db.execute(delete(Finding).where(Finding.asset_id == asset.id))
+
+    fingerprint = fr.to_dict()
+    for cand in rules_service.evaluate(fingerprint):
+        scored = scoring_engine.score(cand.severity, cand.finding_type, fingerprint)
         db.add(
             Finding(
                 tenant_id=tenant_id,
                 asset_id=asset.id,
                 scan_id=scan.id,
-                severity=cand.get("severity", "info"),
-                title=cand.get("title") or "Discovered issue",
-                detail=cand.get("detail"),
+                severity=cand.severity,
+                title=cand.title,
+                detail=cand.detail,
+                finding_type=cand.finding_type,
+                risk_score=scored.risk_score,
+                risk_level=scored.risk_level,
+                remediation=cand.remediation,
+                status="open",
             )
         )
+
+
+async def recompute_asset_risk(db: AsyncSession, asset_id) -> float:
+    """Recompute ``Asset.risk_score`` = max of the asset's open findings.
+
+    Assets with no open findings score 0.0 (spec R3, NULL -> 0.0). Shared by
+    the scan path and the finding-status PATCH path so both stay consistent.
+    The caller owns the commit.
+    """
+    asset = await db.get(Asset, asset_id)
+    if asset is None:
+        return 0.0
+    result = await db.execute(
+        select(Finding.risk_score).where(
+            Finding.asset_id == asset_id,
+            Finding.status == "open",
+        )
+    )
+    asset.risk_score = scoring_engine.aggregate_risk(result.scalars().all())
+    await db.flush()
+    return asset.risk_score
 
 
 async def _upsert_asset(
