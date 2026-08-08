@@ -47,12 +47,12 @@ Chain strategy: feature-branch-chain
 
 ## Phase 3: API (PR2)
 
-- [ ] 3.1 `app/routes/asm.py`: `GET /asm/findings` — filters severity/status/asset_id/scan_id, `risk_score desc nullslast()`, limit/offset
-- [ ] 3.2 `GET /asm/risk-summary` — severity_counts, avg/max, open_findings, top 5; zeros when empty
-- [ ] 3.3 `GET /asm/assets/{id}` — asset + findings; cross-tenant/unknown 404
-- [ ] 3.4 `PATCH /asm/findings/{id}` (`resolved`|`fp`) — invalid 422, recompute aggregate
-- [ ] 3.5 Extend `GET /asm/stats` risk fields
-- [ ] 3.6 Extend `tests/test_asm.py`: filters/sort, summary, asset 404, PATCH 422/404+recompute, stats, cross-tenant
+- [x] 3.1 `app/routes/asm.py`: `GET /asm/findings` — filters severity/status/asset_id/scan_id, `risk_score desc nullslast()`, limit/offset
+- [x] 3.2 `GET /asm/risk-summary` — severity_counts, avg/max, open_findings, top 5; zeros when empty
+- [x] 3.3 `GET /asm/assets/{id}` — asset + findings; cross-tenant/unknown 404
+- [x] 3.4 `PATCH /asm/findings/{id}` (`resolved`|`fp`) — invalid 422, recompute aggregate
+- [x] 3.5 Extend `GET /asm/stats` risk fields
+- [x] 3.6 Extend `tests/test_asm.py`: filters/sort, summary, asset 404, PATCH 422/404+recompute, stats, cross-tenant
 
 ## Phase 4: LLM Enrichment (PR3)
 

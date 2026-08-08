@@ -93,3 +93,96 @@ Full suite after all units: `pytest -q` → **110 passed, 2 skipped** (baseline 
 - PR 2 (Phase 3 API): `GET /asm/findings`, `/asm/risk-summary`, `/asm/assets/{id}`, `PATCH /asm/findings/{id}`, `/asm/stats` risk fields, `tests/test_asm.py` extension.
 - PR 3 (LLM), PR 4 (export), PR 5 (frontend) per tasks.md.
 - Verify phase after all PRs; archive merges deltas.
+
+---
+
+# Apply Progress — risk-scoring (PR 2: Phase 3 API)
+
+- **Change**: risk-scoring
+- **Batch**: PR 2 of feature-branch-chain (`feature/risk-scoring-p2` → tracker `feature/risk-scoring`; base = `feature/risk-scoring-p1` @ 3e3b0df)
+- **Scope**: Phase 3 (API) — tasks 3.1-3.6. NO LLM, export, or frontend (PRs 3-5).
+- **Mode**: Strict TDD (openspec/config.yaml `apply.tdd: true`; pytest 9.1.1, Python 3.11.9)
+- **Artifact store**: hybrid
+- **Date**: 2026-08-08
+- **Commit range**: 3e3b0df (p1 head) → b2b7874 (6 work-unit commits: 4d56da4, 4c45a00, 058c3d1, 377631d, dcdf60e, b2b7874)
+
+## Status (Phase 3)
+
+| Task | Status |
+|------|--------|
+| 3.1 `GET /asm/findings` — filters, `risk_score desc nullslast()`, limit/offset | [x] |
+| 3.2 `GET /asm/risk-summary` — severity_counts, avg/max, open_findings, top 5; zeros when empty | [x] |
+| 3.3 `GET /asm/assets/{id}` — asset + findings; cross-tenant/unknown 404 | [x] |
+| 3.4 `PATCH /asm/findings/{id}` (`open`\|`resolved`\|`fp`) — invalid 422, recompute aggregate | [x] |
+| 3.5 Extend `GET /asm/stats` risk fields | [x] |
+| 3.6 Extend `tests/test_asm.py`: filters/sort, summary, asset 404, PATCH 422/404+recompute, stats, cross-tenant | [x] |
+
+**6/6 Phase 3 tasks complete.** Cumulative: **17/17 tasks through Phase 3** (Phases 4-7 remain for PRs 3-5).
+
+## Work Unit Evidence
+
+| Work unit | Focused test command + result | Runtime harness + result | Rollback boundary |
+|-----------|-------------------------------|--------------------------|-------------------|
+| 1. Findings list (3.1) | `pytest tests/test_asm.py -k TestFindingsList -q` → 8 passed | Real routes over SQLite ASGITransport with `_patch_discovery`; filter/sort/pagination exercised end-to-end | Revert 4d56da4; additive (new endpoint + DTO risk fields) |
+| 2. Risk summary (3.2) | `pytest tests/test_asm.py -k TestRiskSummary -q` → 4 passed | Same harness; real-data + empty-tenant summaries (200) | Revert 4c45a00; additive (new endpoint + shared `_risk_metrics`) |
+| 3. Asset detail (3.3) | `pytest tests/test_asm.py -k TestAssetDetail -q` → 4 passed | Same harness; 200 / cross-tenant 404 / unknown 404 / 401 | Revert 058c3d1; additive |
+| 4. Finding PATCH (3.4) | `pytest tests/test_asm.py -k TestFindingPatch -q` → 4 passed | Same harness; status flip verified through the real `/asm/assets` aggregate drop (`recompute_asset_risk`) | Revert 377631d; additive |
+| 5. Stats risk fields (3.5) | `pytest tests/test_asm.py -k TestStats -q` → 3 passed | Same harness; legacy counts keep shape + risk fields present | Revert dcdf60e; additive keys |
+| 6. Coverage completion (3.6) | `pytest tests/test_asm.py -q` → 44 passed | N/A — test-only unit (scan_id filter, top param) | Revert b2b7874; test-only |
+
+Full suite after all units: `pytest -q` → **131 passed, 2 skipped** (PR1 baseline 110 passed, 2 skipped; +21 tests, 0 regressions).
+
+## TDD Cycle Evidence
+
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 3.1 Findings list | `tests/test_asm.py` | Integration | ✅ 23/23 | ✅ Written (7 failed) | ✅ Passed 8/8 | ✅ 8 cases (sort, status, severity, asset, pagination, scan_id, isolation, 401) | ✅ `_coerce_uuid` helper extracted; NULLS LAST + title tie-break |
+| 3.2 Risk summary | `tests/test_asm.py` | Integration | ✅ 30/30 | ✅ Written (3 failed) | ✅ Passed 4/4 | ✅ 4 cases (real data, empty, top param, 401) | ✅ `_risk_metrics`/`_severity_counts` shared with stats |
+| 3.3 Asset detail | `tests/test_asm.py` | Integration | ✅ 33/33 | ✅ Written (2 failed) | ✅ Passed 4/4 | ✅ 4 cases (owner, cross-tenant, unknown/malformed, 401) | ➖ None needed |
+| 3.4 Finding PATCH | `tests/test_asm.py` | Integration | ✅ 37/37 | ✅ Written (3 failed) | ✅ Passed 4/4 | ✅ 4 cases (resolve+recompute, invalid 422, cross-tenant 404, 401) | ➖ None needed |
+| 3.5 Stats risk fields | `tests/test_asm.py` | Integration (approval) | ✅ 41/41 | ✅ Approval updated → 2 failed | ✅ Passed 3/3 | ✅ 2 datasets (1-scan, 2-asset rich) | ➖ None needed |
+| 3.6 Coverage completion | `tests/test_asm.py` | Integration | ✅ 42/42 | ✅ Written | ✅ Passed 2/2 | ✅ scan_id filter + top override | ➖ None needed |
+
+### Test Summary (PR 2)
+- **Total tests written**: 21 net new in `tests/test_asm.py` (findings 8, summary 4, asset 4, patch 4, stats 1) — 23 → 44
+- **Total tests passing**: 131 (full backend suite) / 2 skipped (RLS, PostgreSQL-only)
+- **Layers used**: Integration (21 via ASGITransport — all endpoints exercised end-to-end)
+- **Approval tests** (refactoring): 1 updated (`test_stats_counts_only_own_tenant` — stats gained risk fields per spec)
+- **Pure functions created**: none new (route-layer helpers `_coerce_uuid`, `_severity_counts`, `_risk_metrics` are async DB helpers by design)
+
+## Files Changed (PR 2)
+
+| File | Action | What Was Done |
+|------|--------|---------------|
+| `backend/app/routes/asm.py` | Modified | AssetDTO/FindingDTO + risk fields (risk_score, risk_level, finding_type, remediation, status, enriched_at); `_coerce_uuid`; `_severity_counts`/`_risk_metrics`; `GET /asm/findings`, `GET /asm/risk-summary`, `GET /asm/assets/{id}`, `PATCH /asm/findings/{id}` (Literal `open\|resolved\|fp`), stats risk fields |
+| `backend/tests/test_asm.py` | Modified | `_seed_scans` helper (returns scan ids); TestFindingsList (8), TestRiskSummary (4), TestAssetDetail (4), TestFindingPatch (4), TestStats extended (2) |
+
+## Deviations from Design
+
+1. **PATCH status domain**: launch prompt said `open|resolved|false_positive`; spec R7 + design are authoritative — domain is `open|resolved|fp` (spec R7: "over the domain open|resolved|fp"). Implemented as Pydantic `Literal["open", "resolved", "fp"]` → invalid values 422.
+2. **Tie-break ordering**: findings/asset lists add `title.asc()` after `risk_score.desc().nullslast()` for deterministic output on equal scores (design table only specified risk_score desc).
+3. **`top` param clamp**: `top` on risk-summary clamps to [1, 100] (design said "top findings (default 5)"); default stays 5.
+4. **Malformed UUID ids**: treated as 404 (asset/PATCH) or empty result (filters) via `_coerce_uuid` — design said "cross-tenant/unknown → 404" and "no data leak"; this extends the same guarantee to malformed ids without a 500.
+
+## Issues Found
+
+- None. One GREEN fix: `_risk_metrics` is async and was initially spread unawaited (`**await _risk_metrics(...)` corrected); caught by the risk-summary RED run.
+
+## Next Steps
+
+- PR 3 (Phase 4 LLM enrichment), PR 4 (Phase 5 export), PR 5 (Phase 6 frontend) per tasks.md.
+- Phase 7 verification after all PRs; archive merges deltas.
+
+## Cumulative Task Status (through PR 2)
+
+| Phase | Tasks | Status |
+|-------|-------|--------|
+| Phase 1 Foundation | 1.1-1.5 | [x] all (PR 1) |
+| Phase 2 Rules + Scoring | 2.1-2.6 | [x] all (PR 1) |
+| Phase 3 API | 3.1-3.6 | [x] all (PR 2) |
+| Phase 4 LLM Enrichment | 4.1-4.5 | [ ] pending (PR 3) |
+| Phase 5 Export | 5.1-5.5 | [ ] pending (PR 4) |
+| Phase 6 Frontend | 6.1-6.6 | [ ] pending (PR 5) |
+| Phase 7 Verification | 7.1-7.2 | [ ] pending |
+
+**17/24 implementation tasks complete through Phase 3.**
