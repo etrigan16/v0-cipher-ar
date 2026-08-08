@@ -43,14 +43,37 @@ export default function FindingsPage() {
   )
 
   useEffect(() => {
-    loadFindings("", "")
+    let active = true
+    api.asm
+      .getFindings()
+      .then((res) => {
+        if (active) {
+          setFindings(res.findings)
+          setError(null)
+        }
+      })
+      .catch((e) => {
+        if (active) {
+          setError(
+            e instanceof Error ? e.message : "No se pudieron cargar los hallazgos"
+          )
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
     api.asm
       .listAssets()
-      .then((res) => setAssets(res.assets))
+      .then((res) => {
+        if (active) setAssets(res.assets)
+      })
       .catch(() => {
         // Asset names fall back to the raw asset id when the list fails.
       })
-  }, [loadFindings])
+    return () => {
+      active = false
+    }
+  }, [])
 
   const handleSeverityChange = (value: string) => {
     setSeverity(value)
