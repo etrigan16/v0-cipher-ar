@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Column, DateTime, ForeignKey, Index, String, Text
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Index, String, Text
 from sqlalchemy import Uuid as SqlUuid
 from sqlalchemy.sql import func
 
@@ -44,3 +44,15 @@ class Finding(Base):
     title = Column(String, nullable=False)
     detail = Column(Text, nullable=True)
     discovered_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Risk-scoring columns (migration 004 — additive, nullable).
+    risk_score = Column(Float, nullable=True)  # deterministic score, 0-10
+    risk_level = Column(String, nullable=True)  # info|low|medium|high|critical
+    finding_type = Column(String, nullable=True)  # e.g. missing-hsts, tls-expired
+    remediation = Column(Text, nullable=True)  # deterministic template / LLM output
+    status = Column(String, nullable=False, default="open", server_default="open")  # open|resolved|fp
+
+    # LLM enrichment columns (migration 004 — additive, nullable).
+    context = Column(Text, nullable=True)  # enriched context (LLM or template)
+    llm_summary = Column(Text, nullable=True)  # raw LLM summary
+    enriched_at = Column(DateTime(timezone=True), nullable=True)

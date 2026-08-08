@@ -3,6 +3,7 @@ import uuid
 from sqlalchemy import (
     Column,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -62,5 +63,7 @@ class Asset(Base):
     service = Column(String, nullable=True)
     fingerprint = Column(Text, nullable=True)  # JSON-encoded fingerprint dict
     status = Column(String, nullable=False, default="discovered")
+    # Tenant-level risk aggregate (max of open findings' risk_score, migration 004).
+    risk_score = Column(Float, nullable=True)
     first_seen = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     last_seen = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

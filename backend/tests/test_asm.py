@@ -130,6 +130,23 @@ class TestAssetModel:
         ).scalars().all()
         assert len(mine) == 0
 
+    async def test_risk_score_nullable_then_settable(self, db_session: AsyncSession, tenant):
+        """R-Asset/004: legacy assets read back with NULL risk_score; scan sets it."""
+        asset = Asset(
+            tenant_id=tenant.id, domain="example.com", subdomain="www.example.com"
+        )
+        db_session.add(asset)
+        await db_session.commit()
+        await db_session.refresh(asset)
+
+        # Legacy row persisted before migration 004 -> NULL until a scan recomputes.
+        assert asset.risk_score is None
+
+        asset.risk_score = 7.5
+        await db_session.commit()
+        await db_session.refresh(asset)
+        assert asset.risk_score == 7.5
+
 
 class TestScanModel:
     """Scan: id, tenant FK, domain, status lifecycle, started/completed/created timestamps."""
@@ -197,6 +214,71 @@ class TestFindingModel:
         assert finding.severity == "medium"
         assert finding.title == "Missing HSTS header"
         assert finding.discovered_at is not None
+
+    async def test_new_columns_default_safely(self, db_session: AsyncSession, tenant):
+        """R-Finding/004: a pre-scoring finding reads back NULL risk fields + status open."""
+        asset = Asset(
+            tenant_id=tenant.id, domain="example.com", subdomain="www.example.com"
+        )
+        scan = Scan(tenant_id=tenant.id, domain="example.com", status="completed")
+        db_session.add_all([asset, scan])
+        await db_session.commit()
+        await db_session.refresh(asset)
+        await db_session.refresh(scan)
+
+        finding = Finding(
+            tenant_id=tenant.id,
+            asset_id=asset.id,
+            scan_id=scan.id,
+            severity="medium",
+            title="Missing HSTS header",
+            detail="The host does not send Strict-Transport-Security.",
+        )
+        db_session.add(finding)
+        await db_session.commit()
+        await db_session.refresh(finding)
+
+        # No backfill: risk/enrichment columns stay NULL, status defaults to open.
+        assert finding.status == "open"
+        assert finding.risk_score is None
+        assert finding.risk_level is None
+        assert finding.finding_type is None
+        assert finding.remediation is None
+        assert finding.enriched_at is None
+
+    async def test_finding_persists_scored_fields(self, db_session: AsyncSession, tenant):
+        """R-Finding/004: scored findings round-trip all risk columns."""
+        asset = Asset(
+            tenant_id=tenant.id, domain="example.com", subdomain="www.example.com"
+        )
+        scan = Scan(tenant_id=tenant.id, domain="example.com", status="completed")
+        db_session.add_all([asset, scan])
+        await db_session.commit()
+        await db_session.refresh(asset)
+        await db_session.refresh(scan)
+
+        finding = Finding(
+            tenant_id=tenant.id,
+            asset_id=asset.id,
+            scan_id=scan.id,
+            severity="high",
+            title="Expired TLS certificate",
+            detail="The certificate expired.",
+            finding_type="tls-expired",
+            risk_score=9.5,
+            risk_level="critical",
+            remediation="Renew the certificate before it expires.",
+            status="open",
+        )
+        db_session.add(finding)
+        await db_session.commit()
+        await db_session.refresh(finding)
+
+        assert finding.finding_type == "tls-expired"
+        assert finding.risk_score == 9.5
+        assert finding.risk_level == "critical"
+        assert finding.remediation == "Renew the certificate before it expires."
+        assert finding.status == "open"
 
 
 # ---------------------------------------------------------------------------
