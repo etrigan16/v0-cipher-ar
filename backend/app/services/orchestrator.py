@@ -30,6 +30,7 @@ from app.services import dns as dns_service
 from app.services import enumerate as crtsh_service
 from app.services import fingerprint as fp_service
 from app.services import finding_rules as rules_service
+from app.services.llm.enrich import enrich_scan_findings
 from app.services.scoring import engine as scoring_engine
 
 logger = logging.getLogger(__name__)
@@ -74,6 +75,16 @@ async def run_scan(db: AsyncSession, tenant_id, domain: str) -> Scan:
 
         for subdomain in subdomains:
             await _process_subdomain(db, scan, tenant_id, domain, subdomain)
+
+        # Phase 4 (PR 3): batch-enrich the scan's findings after they are
+        # persisted and scored. Skips already-enriched rows; a missing key or
+        # failed LLM call degrades to templates and never fails the scan
+        # (spec R1). The batch itself never raises; the guard below is
+        # belt-and-suspenders so a DB hiccup cannot flip the scan to error.
+        try:
+            await enrich_scan_findings(db, scan.id)
+        except Exception as exc:  # noqa: BLE001 - enrichment must not fail the scan
+            logger.exception("Post-scan enrichment failed for scan %s: %s", scan.id, exc)
 
         scan.status = STATUS_COMPLETED
         scan.completed_at = datetime.datetime.now(datetime.timezone.utc)
