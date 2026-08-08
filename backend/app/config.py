@@ -20,7 +20,20 @@ class Settings(BaseSettings):
     fingerprint_port: int = 443
     fingerprint_scheme: str = "https"
 
+    # Optional-key LLM enrichment (Phase 4 — PR 3). ADR-005: OpenAI-compatible
+    # client pointed at Groq. A missing key makes the client inert; the
+    # enrichment service degrades to deterministic templates (spec R1).
+    llm_api_key: str = ""
+    llm_base_url: str = "https://api.groq.com/openai/v1"
+    llm_model: str = "llama-3.3-70b-versatile"
+    llm_timeout: float = 30.0
+
     model_config = {"env_file": ".env"}
+
+    @property
+    def llm_enabled(self) -> bool:
+        """True when ``LLM_API_KEY`` is set — the client is only built then."""
+        return bool(self.llm_api_key)
 
 
 settings = Settings()

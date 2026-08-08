@@ -17,6 +17,10 @@ dnspython==2.8.0
 alembic==1.18.5
 python-slugify==8.0.4
 
+# LLM enrichment (Phase 4 — PR 3). OpenAI-compatible client pointed at Groq
+# (ADR-005); key is optional — enrichment degrades to templates when absent.
+openai==2.53.0
+
 # Test dependencies (pytest harness; see backend/pytest.ini)
 pytest==9.1.1
 pytest-asyncio==1.4.0
