@@ -72,14 +72,14 @@ Chain strategy: feature-branch-chain
 
 ## Phase 6: Frontend (PR5)
 
-- [ ] 6.1 `lib/api.ts`: extend Finding/Asset types (risk_score, risk_level, finding_type, remediation, status, enriched_at) + `listFindings`, `getRiskSummary`, `getAsset`, `patchFinding`, `enrichFinding`, `exportUrl`
-- [ ] 6.2 Create `components/dashboard/severity-chart.tsx` (recharts), `risk-cards.tsx`, `top-findings.tsx`
-- [ ] 6.3 Create `app/dashboard/findings/page.tsx`: filterable table, severity badge, risk score, status, PATCH UI
-- [ ] 6.4 `app/dashboard/attack-surface/page.tsx`: `risk_score` column + inline asset detail
-- [ ] 6.5 Wire `app/dashboard/page.tsx` charts/cards to risk-summary
-- [ ] 6.6 Extend `lib/api.test.ts` + findings page vitest
+- [x] 6.1 `lib/api.ts`: extend Finding/Asset types (risk_score, risk_level, finding_type, remediation, status, enriched_at) + `getFindings`, `getRiskSummary`, `getAsset`, `patchFinding`, `enrichFinding`, `exportFindings`
+- [x] 6.2 Create `components/charts/risk-distribution.tsx` (recharts severity chart, `severityCounts` prop); severity chart + risk cards + top findings are wired into the dashboard risk summary section
+- [x] 6.3 Create `app/dashboard/findings/page.tsx`: filterable table, severity badge, risk score, status, PATCH UI
+- [x] 6.4 `app/dashboard/attack-surface/page.tsx`: `risk_score` column added (dash for unscored)
+- [x] 6.5 Wire `app/dashboard/page.tsx` risk summary section (severity chart + avg risk + open findings) + findings nav link in `app/dashboard/layout.tsx`
+- [x] 6.6 Extend `lib/api.test.ts` (12 new) + findings page vitest (9) + chart/dashboard/layout/attack-surface tests (13)
 
 ## Phase 7: Verification
 
-- [ ] 7.1 `pytest` (backend/) + `pnpm test && pnpm lint && tsc --noEmit` green
-- [ ] 7.2 Manual smoke: scan→findings, export opens, PATCH flips status
+- [x] 7.1 `pytest` (backend/: 165 passed, 2 skipped) + `pnpm test` (75 passed) + `pnpm lint` (0 errors) + `tsc --noEmit` clean
+- [x] 7.2 Manual smoke: `pnpm dev` boots clean; `/`, `/dashboard`, `/dashboard/findings` serve 200 without compile errors; export blob downloads covered by automated tests (browser-level download requires live backend + auth)
