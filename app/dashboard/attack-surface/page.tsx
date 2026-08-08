@@ -150,6 +150,7 @@ export default function AttackSurfacePage() {
                 <TableHead>Puerto</TableHead>
                 <TableHead>Servicio</TableHead>
                 <TableHead>Fingerprint</TableHead>
+                <TableHead>Riesgo</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Descubierto</TableHead>
               </TableRow>
@@ -163,6 +164,9 @@ export default function AttackSurfacePage() {
                   <TableCell className="font-mono text-xs">{a.service ?? "—"}</TableCell>
                   <TableCell className="font-mono text-xs">
                     {typeof a.fingerprint?.title === "string" ? a.fingerprint.title : "—"}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {a.risk_score ?? "—"}
                   </TableCell>
                   <TableCell className="font-mono text-xs">{a.status}</TableCell>
                   <TableCell className="font-mono text-xs">

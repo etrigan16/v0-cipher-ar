@@ -4,11 +4,12 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useAuth, AuthProvider } from "@/components/auth-context"
-import { Crosshair, Siren, LayoutDashboard, LogOut, Menu, X } from "lucide-react"
+import { Crosshair, Siren, LayoutDashboard, ListChecks, LogOut, Menu, X } from "lucide-react"
 
 const sidebarLinks = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/attack-surface", label: "Attack Surface", icon: Crosshair },
+  { href: "/dashboard/findings", label: "Findings", icon: ListChecks },
   { href: "/dashboard/phishing", label: "Phishing", icon: Siren },
 ]
 

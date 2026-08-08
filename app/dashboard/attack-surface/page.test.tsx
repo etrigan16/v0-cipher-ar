@@ -13,6 +13,7 @@ const asset = {
   service: "https",
   fingerprint: { title: "Example Website" },
   status: "discovered",
+  risk_score: 9.5,
   first_seen: "2025-01-01T00:00:00Z",
   last_seen: "2025-01-01T00:00:00Z",
 }
@@ -98,5 +99,28 @@ describe("AttackSurfacePage", () => {
     await waitFor(() => {
       expect(screen.getByText("Not authenticated")).toBeInTheDocument()
     })
+  })
+
+  it("shows the asset risk score column", async () => {
+    render(<AttackSurfacePage />)
+
+    await waitFor(() => {
+      expect(screen.getByText("www.example.com")).toBeInTheDocument()
+    })
+    expect(screen.getByText("9.5")).toBeInTheDocument()
+  })
+
+  it("shows a dash for assets without a risk score", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(okJson({ assets: [{ ...asset, risk_score: null }] }))
+    )
+
+    render(<AttackSurfacePage />)
+
+    await waitFor(() => {
+      expect(screen.getByText("www.example.com")).toBeInTheDocument()
+    })
+    expect(screen.getByText("—")).toBeInTheDocument()
   })
 })
