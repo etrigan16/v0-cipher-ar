@@ -302,6 +302,48 @@ async def get_risk_summary(
     }
 
 
+@router.get("/assets/{asset_id}")
+async def get_asset(
+    asset_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return one of the tenant's assets with its findings (spec R6).
+
+    The tenant filter turns both a cross-tenant id and a nonexistent id into
+    the same 404 — no data leak, no existence oracle. Malformed ids 404 too.
+    """
+    parsed = _coerce_uuid(asset_id)
+    if parsed is None:
+        raise HTTPException(status_code=404, detail="Asset not found")
+
+    asset_result = await db.execute(
+        select(Asset).where(
+            Asset.id == parsed,
+            Asset.tenant_id == user.tenant_id,
+        )
+    )
+    asset = asset_result.scalar_one_or_none()
+    if asset is None:
+        raise HTTPException(status_code=404, detail="Asset not found")
+
+    findings_result = await db.execute(
+        select(Finding)
+        .where(
+            Finding.asset_id == asset.id,
+            Finding.tenant_id == user.tenant_id,
+        )
+        .order_by(
+            Finding.risk_score.desc().nullslast(),
+            Finding.title.asc(),
+        )
+    )
+    return {
+        "asset": _asset_dto(asset),
+        "findings": [_finding_dto(f) for f in findings_result.scalars().all()],
+    }
+
+
 @router.get("/stats")
 async def get_stats(
     user: User = Depends(get_current_user),

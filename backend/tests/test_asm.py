@@ -936,3 +936,63 @@ class TestRiskSummary:
             "/asm/risk-summary", headers={"Authorization": "Bearer not-a-real-token"}
         )
         assert resp.status_code == 401
+
+
+class TestAssetDetail:
+    """GET /asm/assets/{id} — asset plus findings, cross-tenant/unknown -> 404."""
+
+    async def test_asset_with_findings(self, client, monkeypatch):
+        """R6/Detail: the owner sees the asset and its findings."""
+        _patch_discovery(monkeypatch)
+        headers = await _register_and_login(client, "asset-detail@test.com", "Asset Detail Corp")
+        await _seed_scans(client, headers, monkeypatch)
+
+        assets = (await client.get("/asm/assets", headers=headers)).json()["assets"]
+        good = next(a for a in assets if a["domain"] == "good.example.com")
+
+        resp = await client.get(f"/asm/assets/{good['id']}", headers=headers)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["asset"]["id"] == good["id"]
+        assert body["asset"]["domain"] == "good.example.com"
+        # Aggregate = max of the asset's 3 open findings (5.5, 5.5, 2.5).
+        assert body["asset"]["risk_score"] == 5.5
+        assert len(body["findings"]) == 3
+        scores = [f["risk_score"] for f in body["findings"]]
+        assert scores == sorted(scores, reverse=True)
+        assert all(f["asset_id"] == good["id"] for f in body["findings"])
+
+    async def test_cross_tenant_asset_404(self, client, monkeypatch):
+        """R6/CrossTenant: another tenant's asset id -> 404 with no data leak."""
+        _patch_discovery(monkeypatch)
+        headers_a = await _register_and_login(client, "asset-iso-a@test.com", "Asset Iso A Corp")
+        await _seed_scans(client, headers_a, monkeypatch)
+        headers_b = await _register_and_login(client, "asset-iso-b@test.com", "Asset Iso B Corp")
+
+        assets = (await client.get("/asm/assets", headers=headers_a)).json()["assets"]
+        target = assets[0]["id"]
+
+        resp = await client.get(f"/asm/assets/{target}", headers=headers_b)
+        assert resp.status_code == 404
+        assert "asset" not in resp.json()
+
+    async def test_unknown_asset_404(self, client, monkeypatch):
+        """R6/Unknown: nonexistent and malformed ids both return 404."""
+        _patch_discovery(monkeypatch)
+        headers = await _register_and_login(client, "asset-missing@test.com", "Asset Missing Corp")
+
+        missing = await client.get(
+            "/asm/assets/00000000-0000-0000-0000-000000000000", headers=headers
+        )
+        assert missing.status_code == 404
+
+        malformed = await client.get("/asm/assets/not-a-uuid", headers=headers)
+        assert malformed.status_code == 404
+
+    async def test_requires_auth(self, client):
+        """No valid token -> 401."""
+        resp = await client.get(
+            "/asm/assets/00000000-0000-0000-0000-000000000000",
+            headers={"Authorization": "Bearer not-a-real-token"},
+        )
+        assert resp.status_code == 401
