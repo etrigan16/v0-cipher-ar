@@ -8,7 +8,9 @@ isolation on SQLite). A cross-tenant scan id yields 404 and no data leaks.
 """
 
 import json
+import uuid
 from datetime import datetime
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -21,9 +23,12 @@ from app.models.finding import Finding
 from app.models.scan import Scan
 from app.models.user import User
 from app.routes.auth import get_current_user
-from app.services.orchestrator import run_scan
+from app.services.orchestrator import recompute_asset_risk, run_scan
 
 router = APIRouter(prefix="/asm", tags=["asm"])
+
+# Severity bands — the fixed key set for ``severity_counts`` in risk summaries.
+SEVERITIES = ("info", "low", "medium", "high", "critical")
 
 
 class ScanCreate(BaseModel):
@@ -39,6 +44,7 @@ class AssetDTO(BaseModel):
     service: str | None
     fingerprint: dict | None
     status: str
+    risk_score: float | None = None
     first_seen: datetime
     last_seen: datetime
 
@@ -58,7 +64,25 @@ class FindingDTO(BaseModel):
     severity: str
     title: str
     detail: str | None
+    risk_score: float | None = None
+    risk_level: str | None = None
+    finding_type: str | None = None
+    remediation: str | None = None
+    status: str = "open"
+    enriched_at: datetime | None = None
     discovered_at: datetime
+
+
+def _coerce_uuid(value: str) -> uuid.UUID | None:
+    """Return the UUID when ``value`` parses, else ``None`` (invalid input).
+
+    Query/filter values that are not valid UUIDs must not raise a 500 in the
+    ``CoercingUuid`` bind processor; callers treat ``None`` as \"no match\".
+    """
+    try:
+        return uuid.UUID(value)
+    except (ValueError, AttributeError, TypeError):
+        return None
 
 
 def _asset_dto(a: Asset) -> AssetDTO:
@@ -77,6 +101,7 @@ def _asset_dto(a: Asset) -> AssetDTO:
         service=a.service,
         fingerprint=fingerprint,
         status=a.status,
+        risk_score=a.risk_score,
         first_seen=a.first_seen,
         last_seen=a.last_seen,
     )
@@ -100,6 +125,12 @@ def _finding_dto(f: Finding) -> FindingDTO:
         severity=f.severity,
         title=f.title,
         detail=f.detail,
+        risk_score=f.risk_score,
+        risk_level=f.risk_level,
+        finding_type=f.finding_type,
+        remediation=f.remediation,
+        status=f.status,
+        enriched_at=f.enriched_at,
         discovered_at=f.discovered_at,
     )
 
@@ -140,6 +171,62 @@ async def list_assets(
         .order_by(Asset.last_seen.desc())
     )
     return {"assets": [_asset_dto(a) for a in result.scalars().all()]}
+
+
+@router.get("/findings")
+async def list_findings(
+    severity: str | None = None,
+    status: str | None = None,
+    asset_id: str | None = None,
+    scan_id: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List the tenant's findings, filtered, sorted by ``risk_score`` desc.
+
+    Filters mirror spec R4 (severity/status/asset_id/scan_id) plus
+    ``limit``/``offset`` pagination. Sorting uses ``NULLS LAST`` so legacy
+    unscored findings (``risk_score IS NULL``) trail scored ones. Cross-tenant
+    rows are excluded by the ``tenant_id`` filter; an invalid UUID filter
+    value matches nothing instead of raising.
+    """
+    conditions = [Finding.tenant_id == user.tenant_id]
+    if severity:
+        conditions.append(Finding.severity == severity)
+    if status:
+        conditions.append(Finding.status == status)
+    if asset_id:
+        parsed = _coerce_uuid(asset_id)
+        if parsed is None:
+            return {"findings": [], "total": 0, "limit": limit, "offset": offset}
+        conditions.append(Finding.asset_id == parsed)
+    if scan_id:
+        parsed = _coerce_uuid(scan_id)
+        if parsed is None:
+            return {"findings": [], "total": 0, "limit": limit, "offset": offset}
+        conditions.append(Finding.scan_id == parsed)
+
+    total = await db.scalar(
+        select(func.count()).select_from(Finding).where(*conditions)
+    )
+    result = await db.execute(
+        select(Finding)
+        .where(*conditions)
+        .order_by(
+            Finding.risk_score.desc().nullslast(),
+            Finding.title.asc(),  # deterministic tie-break for equal scores
+        )
+        .limit(limit)
+        .offset(offset)
+    )
+    return {
+        "findings": [_finding_dto(f) for f in result.scalars().all()],
+        "total": total or 0,
+        "limit": limit,
+        "offset": offset,
+    }
 
 
 @router.get("/stats")

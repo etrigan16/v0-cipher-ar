@@ -384,6 +384,31 @@ def _patch_discovery(
     monkeypatch.setattr(orchestrator.fp_service, "fingerprint", _fingerprint)
 
 
+async def _seed_scans(client, headers, monkeypatch):
+    """Build a deterministic 5-finding dataset across two assets (PR2).
+
+    Scan 1 (good.example.com, default fingerprint) fires the 3 missing-header
+    rules: missing-hsts 5.5, missing-xcto 2.5, missing-csp 5.5.
+    Scan 2 (exposed.example.com) is header-healthy but serves port 8443 with
+    ``Server: nginx/1.24.0``: nonstandard-port 6.5, server-version-disclosure
+    2.5. The 5 findings sort by risk desc: [6.5, 5.5, 5.5, 2.5, 2.5].
+    """
+    _patch_discovery(monkeypatch)
+    await client.post("/asm/scans", json={"domain": "good.example.com"}, headers=headers)
+
+    _patch_discovery(
+        monkeypatch,
+        fingerprint=_fingerprint(
+            strict_transport_security="max-age=31536000",
+            x_content_type_options="nosniff",
+            content_security_policy="default-src 'self'",
+            port=8443,
+            server="nginx/1.24.0",
+        ),
+    )
+    await client.post("/asm/scans", json={"domain": "exposed.example.com"}, headers=headers)
+
+
 def _patch_enumerate_raises(monkeypatch):
     """Make enumeration raise — used to assert the Scan lands on ``error``."""
 
@@ -723,3 +748,132 @@ class TestRescanOverwrite:
         findings = second_results.json()["findings"]
         assert len(findings) == 1
         assert findings[0]["title"] == "Exposed service on non-standard port 8443"
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 (PR 2): findings list / risk-summary / asset detail / PATCH / stats
+# ---------------------------------------------------------------------------
+
+
+class TestFindingsList:
+    """GET /asm/findings — tenant-scoped, filtered, sorted by risk_score desc."""
+
+    async def test_lists_findings_sorted_by_risk_desc(self, client, monkeypatch):
+        """R4/List: findings sorted by risk_score desc with risk fields populated."""
+        _patch_discovery(monkeypatch)
+        headers = await _register_and_login(client, "findings@test.com", "Findings Corp")
+        await _seed_scans(client, headers, monkeypatch)
+
+        resp = await client.get("/asm/findings", headers=headers)
+        assert resp.status_code == 200
+        body = resp.json()
+
+        assert body["total"] == 5
+        assert body["limit"] == 100
+        assert body["offset"] == 0
+        assert len(body["findings"]) == 5
+
+        scores = [f["risk_score"] for f in body["findings"]]
+        assert scores == sorted(scores, reverse=True)
+        assert scores[0] == 6.5
+        assert body["findings"][0]["finding_type"] == "nonstandard-port"
+        assert body["findings"][0]["risk_level"] == "medium"
+        assert body["findings"][0]["status"] == "open"
+        assert body["findings"][0]["remediation"]
+        # Every row carries the scoring contract fields (spec R4).
+        assert all(f["risk_score"] is not None for f in body["findings"])
+        assert all(
+            f["risk_level"] in {"info", "low", "medium", "high", "critical"}
+            for f in body["findings"]
+        )
+
+    async def test_filters_by_status(self, client, monkeypatch):
+        """R4/FilterStatus: ?status=open returns only open findings."""
+        _patch_discovery(monkeypatch)
+        headers = await _register_and_login(client, "findings-status@test.com", "Findings Status Corp")
+        await _seed_scans(client, headers, monkeypatch)
+
+        resp = await client.get("/asm/findings?status=open", headers=headers)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total"] == 5
+        assert len(body["findings"]) == 5
+        assert all(f["status"] == "open" for f in body["findings"])
+
+        # No resolved findings yet -> the filter genuinely returns nothing.
+        resolved = await client.get("/asm/findings?status=resolved", headers=headers)
+        resolved_body = resolved.json()
+        assert resolved_body["total"] == 0
+        assert resolved_body["findings"] == []
+
+    async def test_filters_by_severity(self, client, monkeypatch):
+        """R4/FilterSeverity: ?severity=medium narrows to medium findings only."""
+        _patch_discovery(monkeypatch)
+        headers = await _register_and_login(client, "findings-sev@test.com", "Findings Sev Corp")
+        await _seed_scans(client, headers, monkeypatch)
+
+        resp = await client.get("/asm/findings?severity=medium", headers=headers)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total"] == 3
+        assert len(body["findings"]) == 3
+        assert all(f["severity"] == "medium" for f in body["findings"])
+
+        low = await client.get("/asm/findings?severity=low", headers=headers)
+        assert low.json()["total"] == 2
+
+    async def test_filters_by_asset_id(self, client, monkeypatch):
+        """R4/FilterAsset: ?asset_id narrows to one asset's findings."""
+        _patch_discovery(monkeypatch)
+        headers = await _register_and_login(client, "findings-asset@test.com", "Findings Asset Corp")
+        await _seed_scans(client, headers, monkeypatch)
+
+        assets = (await client.get("/asm/assets", headers=headers)).json()["assets"]
+        exposed = next(a for a in assets if a["domain"] == "exposed.example.com")
+
+        resp = await client.get(f"/asm/findings?asset_id={exposed['id']}", headers=headers)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total"] == 2
+        assert len(body["findings"]) == 2
+        assert all(f["asset_id"] == exposed["id"] for f in body["findings"])
+
+    async def test_pagination_limit_offset(self, client, monkeypatch):
+        """R4/Pagination: limit/offset slice the full set without overlap."""
+        _patch_discovery(monkeypatch)
+        headers = await _register_and_login(client, "findings-page@test.com", "Findings Page Corp")
+        await _seed_scans(client, headers, monkeypatch)
+
+        first = await client.get("/asm/findings?limit=2&offset=0", headers=headers)
+        f1 = first.json()
+        assert f1["total"] == 5
+        assert len(f1["findings"]) == 2
+
+        second = await client.get("/asm/findings?limit=2&offset=2", headers=headers)
+        f2 = second.json()
+        assert f2["total"] == 5
+        assert len(f2["findings"]) == 2
+
+        ids1 = {f["id"] for f in f1["findings"]}
+        ids2 = {f["id"] for f in f2["findings"]}
+        assert ids1.isdisjoint(ids2)
+
+    async def test_cross_tenant_findings_hidden(self, client, monkeypatch):
+        """R4/Isolation: another tenant's list never includes our findings."""
+        _patch_discovery(monkeypatch)
+        headers_a = await _register_and_login(client, "iso-a@test.com", "Iso A Corp")
+        await _seed_scans(client, headers_a, monkeypatch)
+        headers_b = await _register_and_login(client, "iso-b@test.com", "Iso B Corp")
+
+        resp = await client.get("/asm/findings", headers=headers_b)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total"] == 0
+        assert body["findings"] == []
+
+    async def test_requires_auth(self, client):
+        """No valid token -> 401."""
+        resp = await client.get(
+            "/asm/findings", headers={"Authorization": "Bearer not-a-real-token"}
+        )
+        assert resp.status_code == 401
