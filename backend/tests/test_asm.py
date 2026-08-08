@@ -996,3 +996,86 @@ class TestAssetDetail:
             headers={"Authorization": "Bearer not-a-real-token"},
         )
         assert resp.status_code == 401
+
+
+class TestFindingPatch:
+    """PATCH /asm/findings/{id} — status update + asset aggregate recompute."""
+
+    async def test_resolve_recomputes_asset_risk(self, client, monkeypatch):
+        """R7/Resolve: PATCH flips status and the owning asset's risk drops."""
+        _patch_discovery(monkeypatch)
+        headers = await _register_and_login(client, "patch@test.com", "Patch Corp")
+        await _seed_scans(client, headers, monkeypatch)
+
+        # Highest-risk finding is nonstandard-port 6.5 on exposed.example.com.
+        findings = (await client.get("/asm/findings", headers=headers)).json()["findings"]
+        top = findings[0]
+        assert top["finding_type"] == "nonstandard-port"
+        assert top["risk_score"] == 6.5
+
+        resp = await client.patch(
+            f"/asm/findings/{top['id']}", json={"status": "resolved"}, headers=headers
+        )
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "resolved"
+        assert resp.json()["id"] == top["id"]
+
+        # Only the 2.5 version-disclosure finding stays open -> asset risk 2.5.
+        assets = (await client.get("/asm/assets", headers=headers)).json()["assets"]
+        exposed = next(a for a in assets if a["domain"] == "exposed.example.com")
+        assert exposed["risk_score"] == 2.5
+
+        # The list filter reflects the new status.
+        resolved = await client.get("/asm/findings?status=resolved", headers=headers)
+        assert resolved.json()["total"] == 1
+
+    async def test_invalid_status_422(self, client, monkeypatch):
+        """R7/Invalid: unknown status -> 422 and the row is unchanged."""
+        _patch_discovery(monkeypatch)
+        headers = await _register_and_login(client, "patch-invalid@test.com", "Patch Invalid Corp")
+        await _seed_scans(client, headers, monkeypatch)
+
+        findings = (await client.get("/asm/findings", headers=headers)).json()["findings"]
+        target = findings[0]
+
+        resp = await client.patch(
+            f"/asm/findings/{target['id']}", json={"status": "wontfix"}, headers=headers
+        )
+        assert resp.status_code == 422
+
+        after = (
+            await client.get(f"/asm/findings?asset_id={target['asset_id']}", headers=headers)
+        ).json()
+        assert after["total"] == 2  # both findings still open
+        assert all(f["status"] == "open" for f in after["findings"])
+
+    async def test_cross_tenant_patch_404(self, client, monkeypatch):
+        """R7/CrossTenant: another tenant's finding -> 404, no change persisted."""
+        _patch_discovery(monkeypatch)
+        headers_a = await _register_and_login(client, "patch-iso-a@test.com", "Patch Iso A Corp")
+        await _seed_scans(client, headers_a, monkeypatch)
+        headers_b = await _register_and_login(client, "patch-iso-b@test.com", "Patch Iso B Corp")
+
+        findings = (await client.get("/asm/findings", headers=headers_a)).json()["findings"]
+        target = findings[0]
+
+        resp = await client.patch(
+            f"/asm/findings/{target['id']}",
+            json={"status": "resolved"},
+            headers=headers_b,
+        )
+        assert resp.status_code == 404
+
+        # The owner still sees the finding open.
+        after = (await client.get("/asm/findings", headers=headers_a)).json()["findings"]
+        original = next(f for f in after if f["id"] == target["id"])
+        assert original["status"] == "open"
+
+    async def test_requires_auth(self, client):
+        """No valid token -> 401."""
+        resp = await client.patch(
+            "/asm/findings/00000000-0000-0000-0000-000000000000",
+            json={"status": "resolved"},
+            headers={"Authorization": "Bearer not-a-real-token"},
+        )
+        assert resp.status_code == 401

@@ -344,6 +344,48 @@ async def get_asset(
     }
 
 
+class FindingStatusUpdate(BaseModel):
+    """Accepted status transitions — spec R7 domain ``open|resolved|fp``."""
+
+    status: Literal["open", "resolved", "fp"]
+
+
+@router.patch("/findings/{finding_id}")
+async def update_finding_status(
+    finding_id: str,
+    body: FindingStatusUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update a finding's status and recompute the owning asset's aggregate.
+
+    Spec R7: ``{"status": "resolved"|"fp"}`` over the domain
+    ``open|resolved|fp``. An invalid value is rejected by Pydantic with 422
+    before touching the row; a cross-tenant or unknown id returns 404 with no
+    data leak. ``recompute_asset_risk`` keeps ``Asset.risk_score`` = max of
+    open findings after every change (same path the scanner uses).
+    """
+    parsed = _coerce_uuid(finding_id)
+    if parsed is None:
+        raise HTTPException(status_code=404, detail="Finding not found")
+
+    result = await db.execute(
+        select(Finding).where(
+            Finding.id == parsed,
+            Finding.tenant_id == user.tenant_id,
+        )
+    )
+    finding = result.scalar_one_or_none()
+    if finding is None:
+        raise HTTPException(status_code=404, detail="Finding not found")
+
+    finding.status = body.status
+    await recompute_asset_risk(db, finding.asset_id)
+    await db.commit()
+    await db.refresh(finding)
+    return _finding_dto(finding)
+
+
 @router.get("/stats")
 async def get_stats(
     user: User = Depends(get_current_user),
