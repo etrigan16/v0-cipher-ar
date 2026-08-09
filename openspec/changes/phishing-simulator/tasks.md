@@ -58,10 +58,10 @@ Chain strategy: pending
 
 ## Phase 5: Results + PDF (PR 5)
 
-- [ ] 5.1 RED: per-target results, summary zeroed (200), PDF `%PDF` magic + empty campaign (results R1–R3)
-- [ ] 5.2 `services/phishing/results.py`: per-target activity + aggregate counts/rates (open/click/credential)
-- [ ] 5.3 `services/reports/generator.py`: `ExportCampaignTarget` + `generate_campaign_pdf` reusing `_table_style` (D8)
-- [ ] 5.4 `routes/phishing.py`: `GET /campaigns/{id}/results`, `GET /results-summary`, `GET /campaigns/{id}/report`
+- [x] 5.1 RED: per-target results, summary zeroed (200), PDF `%PDF` magic + empty campaign (results R1–R3)
+- [x] 5.2 `services/phishing/results.py`: per-target activity + aggregate counts/rates (open/click/credential)
+- [x] 5.3 `services/reports/phishing_pdf.py` (PR-5 resolution of design D8): `ExportCampaignTarget` + `generate_campaign_pdf` reusing `_table_style` — new module per launch prompt, not `generator.py`
+- [x] 5.4 `routes/phishing.py`: `GET /campaigns/{id}/results`, `GET /results-summary`, `GET /campaigns/{id}/export?format=csv|pdf` (PR-5 resolution: export endpoint replaces spec R3 `/report`; adds CSV)
 
 ## Phase 6: Frontend (PR 6)
 

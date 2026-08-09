@@ -1,14 +1,14 @@
-# Apply Progress — phishing-simulator (PR 4: Phase 4)
+# Apply Progress — phishing-simulator (PR 5: Phase 5)
 
 - **Change**: phishing-simulator
-- **Batch**: PR 4 of feature-branch-chain (`feature/phishing-simulator-p4` → tracker `feature/phishing-simulator`)
-- **Scope**: Phase 4 (Public tracking + landing + hashing). NO results, PDF, or frontend (Phases 5-6 later PRs).
-- **Mode**: Strict TDD (openspec/config.yaml `apply.tdd: true`; pytest 9.1.1)
+- **Batch**: PR 5 of feature-branch-chain (`feature/phishing-simulator-p5` → previous PR branch `feature/phishing-simulator-p4` → tracker `feature/phishing-simulator`)
+- **Scope**: Phase 5 (Results + PDF). NO frontend (Phase 6 is PR 6).
+- **Mode**: Strict TDD (openspec/config.yaml `apply.tdd: true`)
 - **Artifact store**: hybrid
 - **Date**: 2026-08-09
-- **Commit range**: ae31822 (PR3 HEAD) → PR4 HEAD (2 work-unit commits: 48eaabc, fa1e122)
+- **Commit range**: 637e476 (PR4 HEAD) → PR5 HEAD (2 work-unit commits: 734d3b2, b80f181)
 
-## Status — 17/28 tasks complete (Phases 1 + 2 + 3 + 4)
+## Status — 21/28 tasks complete (Phases 1 + 2 + 3 + 4 + 5)
 
 ### Phase 1 (PR 1 — merged from previous batch)
 
@@ -37,7 +37,7 @@
 | 3.2 `services/phishing/tokens.py`: `secrets.token_urlsafe(16)` generator (D1) | [x] |
 | 3.3 `routes/phishing.py`: campaigns CRUD; target CSV upload (stdlib csv, validate in memory, one bulk insert, 422 + zero persisted — D6); `POST /campaigns/{id}/launch` (draft + ≥1 target, active + started_at, unique tokens + links); `POST /campaigns/{id}/cancel` (draft|active → cancelled + completed_at) | [x] |
 
-### Phase 4 (PR 4 — this batch)
+### Phase 4 (PR 4 — merged from previous batch)
 
 | Task | Status |
 |------|--------|
@@ -47,64 +47,72 @@
 | 4.4 Create `routes/tracking.py`: `/track/open/{token}.png` (1×1 PNG, no-store), `/track/click/{token}` (302 → `/l/{token}`), `GET /l/{token}` (render + notice + form), `POST /l/{token}/submit` (sha256 hash only → Event(credential), discard plaintext — D4), `POST /l/{token}/report` | [x] |
 | 4.5 `main.py`: import + include tracking router | [x] |
 
-**5/5 Phase 4 tasks complete.** Ready for next batch (PR 5: results + PDF).
+### Phase 5 (PR 5 — this batch)
 
-## Work Unit Evidence (PR 4)
+| Task | Status |
+|------|--------|
+| 5.1 RED: per-target results, summary zeroed (200), PDF `%PDF` magic + empty campaign (results R1–R3) | [x] |
+| 5.2 `services/phishing/results.py`: per-target activity + aggregate counts/rates (open/click/credential) | [x] |
+| 5.3 `services/reports/phishing_pdf.py` (PR-5 resolution of design D8): `ExportCampaignTarget` + `generate_campaign_pdf` reusing `_table_style` | [x] |
+| 5.4 `routes/phishing.py`: `GET /campaigns/{id}/results`, `GET /results-summary`, `GET /campaigns/{id}/export?format=csv|pdf` | [x] |
+
+**4/4 Phase 5 tasks complete.** Ready for next batch (PR 6: frontend).
+
+## Work Unit Evidence (PR 5)
 
 | Work unit | Focused test command + result | Runtime harness + result | Rollback boundary |
 |-----------|-------------------------------|--------------------------|-------------------|
-| 1. Expiry rule + event recorder | `pytest tests/test_phishing_tracking.py -q` (at commit 48eaabc) → 6 passed (expiry unit tests) | N/A — pure function (`is_tracking_expired`) + DB insert helper covered by endpoint tests | Revert 48eaabc; `events`/`landing` services are only imported by the tracking router (added next commit) |
-| 2. Tracking routes + main | `pytest tests/test_phishing_tracking.py -q` → 26 passed (6 unit + 20 endpoint) | ASGITransport + in-memory SQLite (conftest `client`): real register/login → template → campaign → CSV → launch → then PUBLIC token flows (pixel bytes, 302 Location, rendered HTML, form submit, report) with real HTTP verbs; OpenAPI schema shows all 5 routes registered | Revert fa1e122; remove `app.include_router(tracking.router)` + `routes/tracking.py` — tables and services stay (additive) |
+| 1. Results service + report generators | `pytest tests/test_phishing_results.py -q` (at commit 734d3b2) → 9 passed (unit layer only: build_target_result ×3, summarize ×2, generate_results_csv ×2, generate_campaign_pdf ×2) | N/A for the unit layer — pure functions (no I/O, no DB); the reportlab PDF path is exercised by the unit test asserting real `%PDF` bytes + extracted text tokens | Revert 734d3b2 — `results.py` + `phishing_pdf.py` are only imported by the routes added in the next commit |
+| 2. Results/summary/export endpoints | `pytest tests/test_phishing_results.py -q` (at b80f181) → 25 passed (9 unit + 16 integration) | ASGITransport + in-memory SQLite (conftest `client`): real register/login → template → campaign → CSV → launch → public tracking endpoints produce Events (open pixel, click, credential submit, report) → auth'd GET `/campaigns/{id}/results` (flags+timestamps), GET `/results-summary` (rates), GET `/campaigns/{id}/export?format=csv\|pdf` (Content-Type/Disposition, `%PDF` magic, CSV columns) — real HTTP verbs, tenant-scoped | Revert b80f181 — drop the 3 routes from `routes/phishing.py` + integration classes in the test file; services/generators/tables stay (additive) |
 
-Full suite at PR4 HEAD: `pytest -q` → **263 passed, 2 skipped** (PR3 baseline 237 + 26 new, 0 regressions).
-Focused slice command (tasks.md unit 4): `pytest -k "tracking or landing or credential or expiry"` → 26 passed.
+Full suite at PR5 HEAD: `pytest -q` → **288 passed, 2 skipped** (PR4 baseline 263 + 25 new, 0 regressions).
+Focused slice command (tasks.md unit 5): `pytest -k "results or summary or pdf"` → 25 passed.
 
-## TDD Cycle Evidence (PR 4)
+## TDD Cycle Evidence (PR 5)
 
 | Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
 |------|-----------|-------|------------|-----|-------|-------------|----------|
-| 4.3 Expiry rule (D2) | `tests/test_phishing_tracking.py` | Unit (pure) | ✅ 72/72 phishing subset (PR3 baseline) | ✅ Written (collection error — `landing` module absent) | ✅ 6 passed | ✅ 6 cases (active, completed 6d, completed 8d, cancelled, draft, naive SQLite datetime) | ➖ None needed (minimal by D2) |
-| 4.1+4.2+4.4+4.5 Public tracking endpoints | `tests/test_phishing_tracking.py` | Integration (API) | ✅ 72/72 phishing subset | ✅ Written (15 failed vs absent routes; 5 false-GREEN 404 tests flip to real logic post-impl) | ✅ 26 passed | ✅ 20 endpoint cases (open pixel + unknown/expired, click 302 + D5 guard ×2 + unknown/expired, landing render/escape + unknown/expired, credential hash + plaintext-never-stored + unknown/expired, report + unknown/expired, 6-day window) | ✅ Extracted `_resolve_or_404` (404 vs 410 mapping), `_request_metadata` (R5 ip/UA), `_click_tracking_url`, PNG byte builder; `db.get(Template, …)` over explicit select; typed return |
+| 5.2 results.py (per-target + summary + CSV) | `tests/test_phishing_results.py` | Unit (pure) | ✅ 83/83 phishing subset (PR4 baseline) | ✅ Written (collection error — `app.services.phishing.results` absent) | ✅ 5 passed (build_target_result ×3, summarize ×2, generate_results_csv ×2 in unit layer) | ✅ 7 cases (no events, mixed activity, landing-only ignored; summary from real data + empty zeros; CSV rows + headers-only) | ✅ Pure functions with typed dataclasses; rate math extracted into `summarize` (single source for counts/rates) |
+| 5.3 phishing_pdf.py (`generate_campaign_pdf`) | `tests/test_phishing_results.py` | Unit (pure, reportlab) | ✅ 83/83 phishing subset | ✅ Written (import error — module absent) | ✅ 2 passed (one test fixture fixed: 3 targets / 2 opened so the 66.67% rate is real) | ✅ 2 cases (PDF with data: title/summary/table tokens; empty campaign: `%PDF` + "No targets" + "0%") | ✅ Extracted `_percent` + `_yes_no` helpers; `_table_style` reused from `reports/generator.py` (D8) instead of duplicated |
+| 5.1+5.4 routes (`/results`, `/results-summary`, `/export`) | `tests/test_phishing_results.py` | Integration (API) | ✅ 83/83 phishing subset | ✅ Written (endpoint tests fail vs absent routes — FastAPI 404) | ✅ 16 passed | ✅ 16 endpoint cases (results: mixed activity, no activity, unknown 404, cross-tenant 404, 401; summary: real data, empty zeros, tenant scoping, 401; export: CSV columns+content-type, PDF header, empty-campaign PDF, invalid format 400, missing format 400, cross-tenant 404, 401) | ✅ Shared `_load_results` helper (campaign vs tenant scope via optional `campaign_id`), `_result_dto`; export mirrors `asm.py` pattern (format gate → 400, `Content-Disposition`) |
 
-### Test Summary (PR 4)
-- **Total tests written**: 26 (expiry unit 6, endpoint integration 20)
-- **Total tests passing**: 26/26 in new file; full suite 263 passed / 2 skipped
-- **Layers used**: Unit (6), Integration (20)
-- **Approval tests**: None — no refactoring of existing behavior (services + routes are net-new)
-- **Pure functions created**: `is_tracking_expired()`, `sha256_hex()`, `credential_hash()`, `resolve_tracking_target()` (services/phishing/landing.py); `record_event()` (services/phishing/events.py); `_png_chunk()`/`_click_tracking_url()`/`_request_metadata()` (routes/tracking.py)
+### Test Summary (PR 5)
+- **Total tests written**: 25 (unit 9: build_target_result 3, summarize 2, generate_results_csv 2, generate_campaign_pdf 2; integration 16)
+- **Total tests passing**: 25/25 in new file; full suite 288 passed / 2 skipped (PR4 baseline 263 → +25, 0 regressions)
+- **Layers used**: Unit (9), Integration (16)
+- **Approval tests**: None — no refactoring of existing behavior (services + routes are net-new; `phishing.py` only gained routes)
+- **Pure functions created**: `build_target_result()`, `summarize()`, `generate_results_csv()` (services/phishing/results.py); `generate_campaign_pdf()`, `_percent()`, `_yes_no()` (services/reports/phishing_pdf.py)
 
-## Files Changed (PR 4)
+## Files Changed (PR 5)
 
 | File | Action | What Was Done |
 |------|--------|---------------|
-| `backend/app/services/phishing/landing.py` | Created | `is_tracking_expired()` (D2 campaign-state expiry: active → valid; completed → 7d past `completed_at`; else expired; naive-datetime-safe), `resolve_tracking_target()` (token → (Target, Campaign, expired) | None), `sha256_hex()` + `credential_hash()` (D4 one-way hashing) |
-| `backend/app/services/phishing/events.py` | Created | `record_event(db, *, tenant_id, campaign_id, target_id, type, metadata)` → JSON-encoded Event row (D3), commits before response |
-| `backend/app/services/phishing/__init__.py` | Modified | Exports `record_event`, `resolve_tracking_target`, `is_tracking_expired`, `credential_hash`, `sha256_hex` |
-| `backend/app/routes/tracking.py` | Created | Public router (no prefix, no auth): `GET /track/open/{token}.png` (1×1 transparent PNG, no-store, records open), `GET /track/click/{token}?url=` (records click, ALWAYS 302 → `/l/{token}` — D5, `?url=` metadata-only), `GET /l/{token}` (renders template with `{{nombre}}`/`{{link}}`, notice + credential form, records landing), `POST /l/{token}/submit` (Form username/password → SHA-256 hashes only → records credential → success page), `POST /l/{token}/report` (records report → confirmation). Unknown → 404, expired → 410, no Event either way |
-| `backend/app/main.py` | Modified | `from app.routes import … tracking` + `app.include_router(tracking.router)` |
-| `backend/tests/test_phishing_tracking.py` | Created | 26 tests: 6 expiry unit (D2/R5) + 20 endpoint integration (R1–R6, D4/D5) |
+| `backend/app/services/phishing/results.py` | Created | Pure aggregation: `TargetResult` (email/name/status + opened/clicked/credential/reported flags + first-event timestamps), `ResultsSummary` (total/sent/opened+rate/clicked+rate/credentials/reported), `build_target_result()`, `summarize()` (rates over `sent`=active targets, 0.0 on empty), `generate_results_csv()` (stdlib csv, headers `email,name,status,opened,clicked,credential,reported`, lowercase `true`/`false`) |
+| `backend/app/services/reports/phishing_pdf.py` | Created | `ExportCampaignTarget` + `generate_campaign_pdf(campaign, targets)` — A4 reportlab PDF: dark title band, Results Summary (total/sent/opened+rate/clicked+rate/credentials/reported), per-target table (email, status, opened, clicked, credentials), empty-campaign note; reuses `_table_style` from `reports/generator.py` (design D8); pure bytes |
+| `backend/app/services/phishing/__init__.py` | Modified | Re-exports `TargetResult`, `ResultsSummary`, `build_target_result`, `summarize`, `generate_results_csv` |
+| `backend/app/services/reports/__init__.py` | Modified | Re-exports `ExportCampaignTarget`, `generate_campaign_pdf` |
+| `backend/app/routes/phishing.py` | Modified | +3 auth'd tenant-scoped routes: `GET /campaigns/{id}/results` (per-target flags + first-event timestamps), `GET /results-summary` (tenant aggregate via `asdict(summarize(...))`), `GET /campaigns/{id}/export?format=csv|pdf` (CSV via stdlib / PDF via reportlab, `Content-Disposition: attachment`, 400 on invalid/missing format); shared `_load_results` helper (targets + `MIN(occurred_at)` per (target,type) GROUP BY, tenant-filtered) |
+| `backend/tests/test_phishing_results.py` | Created | 25 tests: 9 unit (pure services/generators) + 16 integration (endpoints over ASGITransport; real tracking endpoints produce Events) |
 
 ## Deviations from Design / Launch Prompt
 
-1. **Click redirect follows design D5, NOT the launch prompt's "redirect to `?url=` when http/https"**. Spec R2 ("redirecting the visitor to the target's landing link"), design D5 ("always 302 → `/l/{token}`; `?url=` in metadata only") and tasks 4.1 RED (`?url=https://evil` still 302 → `/l/{token}`) all agree the redirect target is always the landing page — following `?url=` (even http/https-only) is precisely the open-redirect behavior D5 rejects. `?url=` is recorded in click Event metadata. The D5 threat-matrix RED tests cover both `https://evil…` and `javascript:…` values.
-2. **Expiry uses campaign state (design D2/spec R5), NOT `Target.created_at + 7 days` as the launch prompt stated.** The design's rule is "valid while `active`; `completed` → 7d past `completed_at`; else 410" and spec R5's scenario ("campaign completed 8 days ago → 410") is only satisfiable with `completed_at`-based expiry — a `created_at`-based rule would keep a long-completed campaign's links live. The exact check is `is_tracking_expired()` in `services/phishing/landing.py`.
-3. **Expired → 410 (spec R2/R3/R5 explicit), unknown → 404** — the launch prompt said "expired 404"; spec requires 410 for expired tokens.
-4. **Credential metadata is a superset of both authority sources**: `username_sha256`, `password_sha256` (launch prompt) AND the D4 combined `hash = sha256(f"{username}:{password}")` (design D4). No plaintext anywhere.
-5. **`{{link}}` bait**: no per-campaign bait field exists in the model, so the landing page itself is the bait URL carried by the click tracking URL (D5 metadata-only semantics). `{{empresa}}` has no source field → renders empty per D7 (missing key → empty).
-6. **Submit returns 200 success page** (design interface says 200; launch prompt allowed "success page or 204").
-7. **Landing page/notice/form copy in Spanish** — matches the existing Spanish seed templates (product is Argentine SMB); neutral register, no slang.
+1. **`generate_campaign_pdf` lives in a new module `services/reports/phishing_pdf.py`, NOT `services/reports/generator.py`** (design D8 said generator.py). The PR-5 launch prompt explicitly required the new module. Design intent (reuse `_table_style`, stay pure) is preserved: it imports `_table_style` from `generator.py` (D8) and keeps the ORM-free bytes contract.
+2. **Export endpoint replaces spec R3's `/campaigns/{id}/report`**: the PR-5 launch prompt requires `GET /campaigns/{id}/export?format=csv|pdf` (with CSV added, plus `Content-Disposition`/Content-Type and 400 on invalid format). Tasks 5.4's `/report` wording is superseded by this resolution; spec R3's "report returning a valid PDF" maps to `export?format=pdf`. The spec delta is left for the verify/archive phase to reconcile.
+3. **Rates are percentages over `sent` (active targets), not totals** — `sent` is the launch-delivered denominator (pending targets were never sent). Empty/zero-sent tenants return 0.0 (spec R2). The launch prompt's summary field set (total/sent/opened+rate/clicked+rate/credentials/reported) is exposed exactly; spec R2's "credential %" is not a separate field (credentials are a count, matching the launch prompt).
+4. **`landing` events never flip a results flag** (design D3 audits them, but the results surface is open/click/credential/report per the launch prompt). Covered explicitly by a unit test.
+5. **CSV bool cells render lowercase `true`/`false`** — deterministic, stdlib-safe (no locale-dependent `str(True)`).
 
 ## Issues Found
 
-- 5 RED endpoint tests passed trivially (routes absent → FastAPI 404): the five `*_unknown_token_404_no_event` tests. False GREENs during RED; after implementation they pass for the right reason (token lookup → 404). The other 15 failed during RED as expected.
-- A leftover drafting placeholder in `landing_page` (dead `db.get` expression + in-function import) was removed during REFACTOR before commit — no test impact.
+- One RED unit test had a **fixture math error** (asserted 66.67% with 2 targets/1 opened = 50%): fixed the fixture to 3 targets/2 opened so the percent computation is genuinely exercised. Production code was correct; no implementation change needed.
+- The `.atl/skill-registry*` files were already dirty before this batch (session noise, unrelated) — left uncommitted.
 - pytest runtime warnings (deprecated `on_event`, unawaited coroutines) are pre-existing — not introduced by this batch.
 
 ## Workload / PR Boundary
 
-- Mode: chained PR slice (feature-branch-chain); PR 4 targets the previous PR branch `feature/phishing-simulator-p3` (tracker: `feature/phishing-simulator`)
-- Boundary: starts at ae31822 (PR3 HEAD); ends with this batch's HEAD (2 work-unit commits)
-- Estimated review budget impact: **~870 added / 8 deleted changed lines (code + tests)** — dominated by the 26-test file (~460 lines) and the 269-line router. Within the 800-line slice budget if the test file is counted; flagged for the reviewer — the router + services are ~380 authored lines, the rest is tests.
+- Mode: chained PR slice (feature-branch-chain); PR 5 targets the previous PR branch `feature/phishing-simulator-p4` (tracker: `feature/phishing-simulator`)
+- Boundary: starts at 637e476 (PR4 HEAD); ends with this batch's HEAD (2 work-unit commits: 734d3b2 services/generators, b80f181 routes + integration tests)
+- Estimated review budget impact: **~1007 added / 6 deleted changed lines** — dominated by the 25-test file (~452 lines) and the 204-line PDF generator. The PR-5 preflight budget was 800 lines; this slice slightly exceeds it for the same reason PR4 did (RED suite + a full reportlab generator). Reviewer-facing logic is ~450 authored lines; the rest is tests. Flagged for the orchestrator: if 800 is a hard gate, PR 5 could be re-split (e.g., results+summary vs export) — otherwise accept `size:exception` for this slice.
 
 ### Status
-17/28 tasks complete (6/6 Phase 1 + 3/3 Phase 2 + 3/3 Phase 3 + 5/5 Phase 4). Ready for next batch (PR 5: results + PDF).
+21/28 tasks complete (6/6 Phase 1 + 3/3 Phase 2 + 3/3 Phase 3 + 5/5 Phase 4 + 4/4 Phase 5). Ready for next batch (PR 6: frontend).
