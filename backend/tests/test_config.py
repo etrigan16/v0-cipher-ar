@@ -64,3 +64,19 @@ def test_llm_overrides_read_from_environment(monkeypatch):
     assert s.llm_base_url == "https://custom.example/v1"
     assert s.llm_model == "llama-3.3-70b"
     assert s.llm_timeout == 15.0
+
+
+# --- Phase 1: Phishing tracking base URL (PR 1) ---------------------------
+
+
+def test_tracking_base_url_defaults_to_localhost():
+    """Local default: links resolve to the local backend when unset."""
+    s = Settings(_env_file=None)
+    assert s.tracking_base_url == "http://localhost:8000"
+
+
+def test_tracking_base_url_reads_from_environment(monkeypatch):
+    """TRACKING_BASE_URL override is honored (prod Caddy domain)."""
+    monkeypatch.setenv("TRACKING_BASE_URL", "https://track.aukalabs.com")
+    s = Settings(_env_file=None)
+    assert s.tracking_base_url == "https://track.aukalabs.com"

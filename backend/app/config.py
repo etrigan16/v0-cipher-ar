@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     llm_model: str = "llama-3.3-70b-versatile"
     llm_timeout: float = 30.0
 
+    # Phishing simulator (Sprint 3): base URL used to build the public
+    # per-target tracking links (/track/open/..., /l/{token}) returned at
+    # campaign launch. Prod (Caddy) overrides via TRACKING_BASE_URL.
+    tracking_base_url: str = "http://localhost:8000"
+
     model_config = {"env_file": ".env"}
 
     @property
