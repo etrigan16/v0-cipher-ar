@@ -38,9 +38,9 @@ Chain strategy: pending
 
 ## Phase 2: Template CRUD + Renderer (PR 2)
 
-- [ ] 2.1 RED: template CRUD, cross-tenant 404, seed visibility, render escape/missing-var (templates R1–R4)
-- [ ] 2.2 `services/phishing/render.py`: 3-key `str.replace` + `html.escape` on target values, missing → empty (D7)
-- [ ] 2.3 `routes/phishing.py`: `GET/POST /templates`, `GET/PUT/DELETE /templates/{id}` with `get_current_user`; unknown/cross-tenant → 404
+- [x] 2.1 RED: template CRUD, cross-tenant 404, seed visibility, render escape/missing-var (templates R1–R4)
+- [x] 2.2 `services/phishing/render.py`: 3-key `str.replace` + `html.escape` on target values, missing → empty (D7)
+- [x] 2.3 `routes/phishing.py`: `GET/POST /templates`, `GET/PUT/DELETE /templates/{id}` with `get_current_user`; unknown/cross-tenant → 404
 
 ## Phase 3: Campaign CRUD + CSV + Launch/Cancel (PR 3)
 
