@@ -50,11 +50,11 @@ Chain strategy: pending
 
 ## Phase 4: Public Tracking + Landing (PR 4)
 
-- [ ] 4.1 RED (threat matrix D5): `?url=https://evil` still 302 → `/l/{token}`; expired token → 410, no Event
-- [ ] 4.2 RED: open/click/landing/credential/report flows, 7-day expiry, IP/UA metadata, plaintext never stored (tracking R1–R6)
-- [ ] 4.3 `services/phishing/landing.py`: token→Target lookup, expiry rule (D2), Event recording with ip/user_agent
-- [ ] 4.4 Create `routes/tracking.py`: `/track/open/{token}.png` (1×1 PNG, no-store), `/track/click/{token}` (302 → `/l/{token}`), `GET /l/{token}` (render + notice + form), `POST /l/{token}/submit` (sha256 hash only → Event(credential), discard plaintext — D4), `POST /l/{token}/report`
-- [ ] 4.5 `main.py`: import + include tracking router
+- [x] 4.1 RED (threat matrix D5): `?url=https://evil` still 302 → `/l/{token}`; expired token → 410, no Event
+- [x] 4.2 RED: open/click/landing/credential/report flows, 7-day expiry, IP/UA metadata, plaintext never stored (tracking R1–R6)
+- [x] 4.3 `services/phishing/landing.py`: token→Target lookup, expiry rule (D2), Event recording with ip/user_agent
+- [x] 4.4 Create `routes/tracking.py`: `/track/open/{token}.png` (1×1 PNG, no-store), `/track/click/{token}` (302 → `/l/{token}`), `GET /l/{token}` (render + notice + form), `POST /l/{token}/submit` (sha256 hash only → Event(credential), discard plaintext — D4), `POST /l/{token}/report`
+- [x] 4.5 `main.py`: import + include tracking router
 
 ## Phase 5: Results + PDF (PR 5)
 
