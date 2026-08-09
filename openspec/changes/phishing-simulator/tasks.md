@@ -44,9 +44,9 @@ Chain strategy: pending
 
 ## Phase 3: Campaign CRUD + CSV + Launch/Cancel (PR 3)
 
-- [ ] 3.1 RED: campaign CRUD, CSV valid/invalid/dedupe, launch uniqueness + non-draft 409, cancel rules (campaigns R1–R6)
-- [ ] 3.2 `services/phishing/tokens.py`: `secrets.token_urlsafe(16)` generator (D1)
-- [ ] 3.3 `routes/phishing.py`: campaigns CRUD; `POST /targets/upload` (stdlib csv, validate in memory, one bulk insert, 422 + zero persisted — D6); `POST /campaigns/{id}/launch` (draft only, 100–2000 bounded, active + started_at, return links); `POST /campaigns/{id}/cancel` (draft|active → cancelled + completed_at)
+- [x] 3.1 RED: campaign CRUD, CSV valid/invalid/dedupe, launch uniqueness + non-draft 409, cancel rules (campaigns R1–R6)
+- [x] 3.2 `services/phishing/tokens.py`: `secrets.token_urlsafe(16)` generator (D1)
+- [x] 3.3 `routes/phishing.py`: campaigns CRUD; `POST /targets/upload` (stdlib csv, validate in memory, one bulk insert, 422 + zero persisted — D6); `POST /campaigns/{id}/launch` (draft only, 100–2000 bounded, active + started_at, return links); `POST /campaigns/{id}/cancel` (draft|active → cancelled + completed_at)
 
 ## Phase 4: Public Tracking + Landing (PR 4)
 
