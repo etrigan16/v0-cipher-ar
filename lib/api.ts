@@ -2,10 +2,15 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
 /** Build the headers shared by every request: JSON content type plus the
  * stored bearer token when present. Extra headers override the defaults and
- * never replace the Authorization header. */
-function buildHeaders(extra: Record<string, string> = {}): Record<string, string> {
+ * never replace the Authorization header. When ``json`` is false (multipart
+ * FormData uploads) the Content-Type is omitted so the browser sets the
+ * multipart boundary. */
+function buildHeaders(
+  extra: Record<string, string> = {},
+  json = true
+): Record<string, string> {
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+    ...(json ? { "Content-Type": "application/json" } : {}),
     ...extra,
   }
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
@@ -19,14 +24,22 @@ async function request<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
+  const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData
   const res = await fetch(`${API_BASE}${endpoint}`, {
     ...options,
-    headers: buildHeaders(options.headers as Record<string, string> | undefined),
+    headers: buildHeaders(
+      options.headers as Record<string, string> | undefined,
+      !isFormData
+    ),
   })
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: "Error desconocido" }))
     throw new Error(error.detail || `HTTP ${res.status}`)
+  }
+
+  if (res.status === 204) {
+    return undefined as T
   }
 
   return res.json()
@@ -107,6 +120,84 @@ export type FindingsFilters = {
   scan_id?: string
   limit?: number
   offset?: number
+}
+
+// ── Phishing (Phase 6, PR 6) ────────────────────────────────────────────────
+// Tenant-scoped phishing templates/campaigns/results. Field names mirror the
+// backend DTOs in `backend/app/routes/phishing.py` (snake_case).
+
+export type TemplateCategory = "bank" | "government" | "tech"
+
+export type Template = {
+  id: string
+  name: string
+  subject: string
+  html_body: string
+  category: TemplateCategory
+  created_at: string
+}
+
+export type TemplateInput = {
+  name: string
+  subject: string
+  html_body: string
+  category: TemplateCategory
+}
+
+export type CampaignStatus = "draft" | "active" | "completed" | "cancelled"
+
+export type Campaign = {
+  id: string
+  name: string
+  template_id: string
+  status: CampaignStatus
+  started_at: string | null
+  completed_at: string | null
+  created_at: string
+  target_count: number
+}
+
+export type CampaignInput = {
+  name: string
+  template_id: string
+}
+
+export type Target = {
+  id: string
+  email: string
+  name: string
+  status: string
+  tracking_token: string | null
+  created_at: string
+}
+
+export type LaunchedTarget = Target & {
+  landing_url: string
+}
+
+export type TargetResult = {
+  email: string
+  name: string
+  status: string
+  opened: boolean
+  opened_at: string | null
+  clicked: boolean
+  clicked_at: string | null
+  credential: boolean
+  credential_at: string | null
+  reported: boolean
+  reported_at: string | null
+}
+
+export type ResultsSummary = {
+  total_targets: number
+  sent: number
+  opened_count: number
+  opened_rate: number
+  clicked_count: number
+  clicked_rate: number
+  credentials_count: number
+  reported_count: number
 }
 
 export const api = {
@@ -195,13 +286,71 @@ export const api = {
       }),
   },
   phishing: {
-    campaigns: () => request<{ campaigns: unknown[] }>("/phishing/campaigns"),
-    createCampaign: (data: unknown) =>
-      request<{ id: string }>("/phishing/campaigns", {
+    // Templates
+    listTemplates: () => request<{ templates: Template[] }>("/phishing/templates"),
+    createTemplate: (data: TemplateInput) =>
+      request<Template>("/phishing/templates", {
         method: "POST",
         body: JSON.stringify(data),
       }),
-    results: (campaignId: string) =>
-      request<unknown>(`/phishing/campaigns/${campaignId}/results`),
+    updateTemplate: (id: string, data: TemplateInput) =>
+      request<Template>(`/phishing/templates/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+    deleteTemplate: (id: string) =>
+      request<void>(`/phishing/templates/${id}`, {
+        method: "DELETE",
+      }),
+    // Campaigns + targets
+    listCampaigns: () => request<{ campaigns: Campaign[] }>("/phishing/campaigns"),
+    getCampaign: (id: string) => request<Campaign>(`/phishing/campaigns/${id}`),
+    createCampaign: (data: CampaignInput) =>
+      request<Campaign>("/phishing/campaigns", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    listTargets: (campaignId: string) =>
+      request<{ targets: Target[] }>(`/phishing/campaigns/${campaignId}/targets`),
+    uploadTargets: (campaignId: string, file: File) => {
+      const form = new FormData()
+      form.append("file", file)
+      return request<{ count: number; targets: Target[] }>(
+        `/phishing/campaigns/${campaignId}/targets/upload`,
+        {
+          method: "POST",
+          body: form,
+        }
+      )
+    },
+    launchCampaign: (campaignId: string) =>
+      request<{ campaign: Campaign; targets: LaunchedTarget[] }>(
+        `/phishing/campaigns/${campaignId}/launch`,
+        { method: "POST" }
+      ),
+    cancelCampaign: (campaignId: string) =>
+      request<Campaign>(`/phishing/campaigns/${campaignId}/cancel`, {
+        method: "POST",
+      }),
+    // Results + export
+    getCampaignResults: (campaignId: string) =>
+      request<{ campaign_id: string; targets: TargetResult[] }>(
+        `/phishing/campaigns/${campaignId}/results`
+      ),
+    getResultsSummary: () => request<ResultsSummary>("/phishing/results-summary"),
+    exportCampaign: async (campaignId: string, format: "csv" | "pdf") => {
+      const res = await fetch(
+        `${API_BASE}/phishing/campaigns/${campaignId}/export?format=${format}`,
+        {
+          method: "GET",
+          headers: buildHeaders(),
+        }
+      )
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ detail: "Error desconocido" }))
+        throw new Error(error.detail || `HTTP ${res.status}`)
+      }
+      return res.blob()
+    },
   },
 }
