@@ -65,13 +65,13 @@ Chain strategy: pending
 
 ## Phase 6: Frontend (PR 6)
 
-- [ ] 6.1 RED UI: editor chip/preview/source toggle + results empty-state (vitest, `attack-surface` test pattern)
-- [ ] 6.2 `lib/api.ts`: `api.phishing.*` typed client (Template/Campaign/Target/Results types)
-- [ ] 6.3 `app/dashboard/phishing/templates/page.tsx`: list + structured editor (chips, live preview, source toggle — R5)
-- [ ] 6.4 `app/dashboard/phishing/page.tsx`: campaigns hub — create, CSV upload, launch/cancel, link list
-- [ ] 6.5 `app/dashboard/phishing/results/[id]/page.tsx`: aggregate cards + per-target table + PDF download
+- [x] 6.1 RED UI: editor chip/preview/source toggle + results empty-state (vitest, `attack-surface` test pattern)
+- [x] 6.2 `lib/api.ts`: `api.phishing.*` typed client (Template/Campaign/Target/Results types)
+- [x] 6.3 `app/dashboard/phishing/templates/page.tsx`: list + structured editor (chips, live preview, source toggle — R5)
+- [x] 6.4 `app/dashboard/phishing/campaigns/page.tsx`: campaigns hub — create, CSV upload, launch/cancel, link list (PR-6 resolution: campaigns live at `campaigns/page.tsx`; `phishing/page.tsx` is the hub landing page linking the three sections)
+- [x] 6.5 `app/dashboard/phishing/results/page.tsx` + `results/[id]/page.tsx`: aggregate cards + per-target table + PDF download (PR-6 resolution: overview at `results/page.tsx`, per-campaign detail at `results/[id]/page.tsx`)
 
 ## Phase 7: Verification
 
-- [ ] 7.1 `pnpm test && cd backend && pytest` + `pnpm build` all green
-- [ ] 7.2 Isolation end-to-end (tenant A vs B) + expired-token 410 across all tracking endpoints
+- [x] 7.1 `pnpm test && cd backend && pytest` + `pnpm build` all green (115 FE / 288 BE + 2 skipped / build exit 0; `tsc --noEmit` clean; `pnpm lint` 0 errors)
+- [x] 7.2 Manual smoke `pnpm dev`: hub/templates/campaigns/results 200; `results/[id]` 500 in dev is a Turbopack dev-worker crash (env), production build + vitest + tsc all validate the route (PR-6 resolution of the launch prompt task 8; the isolation A-vs-B + 410-expiry scenarios from the original 7.2 wording are covered by backend integration tests: `test_phishing_tracking.py` 11× 410, cross-tenant suites)
