@@ -19,6 +19,7 @@ are the same 404 (spec R6, no existence oracle).
 import csv
 import io
 import uuid
+from dataclasses import asdict
 from datetime import datetime, timezone
 from typing import Literal
 
@@ -38,11 +39,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.models.campaign import Campaign
+from app.models.event import Event
 from app.models.target import Target
 from app.models.template import Template
 from app.models.user import User
 from app.routes.auth import get_current_user
+from app.services.phishing.results import (
+    TargetResult,
+    build_target_result,
+    generate_results_csv,
+    summarize,
+)
 from app.services.phishing.tokens import generate_tracking_token
+from app.services.reports.phishing_pdf import ExportCampaignTarget, generate_campaign_pdf
 
 router = APIRouter(prefix="/phishing", tags=["phishing"])
 
@@ -678,3 +687,167 @@ async def cancel_campaign(
     await db.commit()
     await db.refresh(campaign)
     return _campaign_dto(campaign)
+
+
+# ── Results + export (Phase 5, PR 5 — spec R1/R2/R3) ─────────────────────────
+
+
+def _result_dto(result: TargetResult) -> dict:
+    """One per-target row: flags + first-event timestamps (spec R1)."""
+    return {
+        "email": result.email,
+        "name": result.name,
+        "status": result.status,
+        "opened": result.opened,
+        "opened_at": result.opened_at,
+        "clicked": result.clicked,
+        "clicked_at": result.clicked_at,
+        "credential": result.credential,
+        "credential_at": result.credential_at,
+        "reported": result.reported,
+        "reported_at": result.reported_at,
+    }
+
+
+async def _load_results(
+    db: AsyncSession, *, tenant_id, campaign_id=None
+) -> list[TargetResult]:
+    """Build per-target results for a campaign (or the whole tenant).
+
+    Targets and Events are both filtered on ``tenant_id`` (app-level
+    isolation — RLS is PostgreSQL-only, so this filter is what proves
+    isolation on SQLite, same as every other phishing route). Event
+    aggregation uses ``MIN(occurred_at)`` per ``(target, type)`` so each
+    flag carries the target's FIRST occurrence (spec R1 timestamps).
+    """
+    target_filters = [Target.tenant_id == tenant_id]
+    event_filters = [Event.tenant_id == tenant_id]
+    if campaign_id is not None:
+        target_filters.append(Target.campaign_id == campaign_id)
+        event_filters.append(Event.campaign_id == campaign_id)
+
+    targets_result = await db.execute(
+        select(Target).where(*target_filters).order_by(Target.created_at.asc())
+    )
+    targets = targets_result.scalars().all()
+
+    events_result = await db.execute(
+        select(
+            Event.target_id,
+            Event.type,
+            func.min(Event.occurred_at),
+        )
+        .where(*event_filters)
+        .group_by(Event.target_id, Event.type)
+    )
+    times: dict[uuid.UUID, dict[str, datetime]] = {}
+    for target_id, event_type, occurred_at in events_result.all():
+        times.setdefault(target_id, {})[event_type] = occurred_at
+
+    return [
+        build_target_result(
+            email=t.email,
+            name=t.name,
+            status=t.status,
+            event_times=times.get(t.id, {}),
+        )
+        for t in targets
+    ]
+
+
+@router.get("/campaigns/{campaign_id}/results")
+async def get_campaign_results(
+    campaign_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Per-target results for one campaign (spec R1).
+
+    Each row carries the target's email/name/status and per-type activity
+    flags + first-event timestamps (opened/clicked/credential/reported).
+    Cross-tenant and unknown ids are the same 404 (no existence oracle).
+    """
+    campaign = await _get_owned_campaign(db, campaign_id, user.tenant_id)
+    if campaign is None:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    results = await _load_results(
+        db, tenant_id=user.tenant_id, campaign_id=campaign.id
+    )
+    return {
+        "campaign_id": str(campaign.id),
+        "targets": [_result_dto(r) for r in results],
+    }
+
+
+@router.get("/results-summary")
+async def get_results_summary(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Tenant-wide results aggregate (spec R2).
+
+    Counts (total/sent/opened/clicked/credentials/reported) and rates
+    (open %, click %) are computed from the tenant's targets and Events
+    only. A tenant with no activity gets zero counts and 0% rates with 200 —
+    never an error (spec R2 empty-tenant scenario).
+    """
+    results = await _load_results(db, tenant_id=user.tenant_id)
+    return asdict(summarize(results))
+
+
+@router.get("/campaigns/{campaign_id}/export")
+async def export_campaign_results(
+    campaign_id: str,
+    format: str | None = None,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Export one campaign's results as CSV or PDF (PR-5 spec R3).
+
+    ``format`` must be ``csv`` or ``pdf`` — anything else, including a
+    missing value, is a 400 (mirrors ``asm.py`` export). The campaign must
+    belong to the tenant (cross-tenant/unknown → 404). CSV is rendered with
+    the stdlib ``csv`` writer; PDF reuses the risk-scoring reportlab stack
+    (design D8). Both are returned as an attachment download.
+    """
+    if format not in ("csv", "pdf"):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid export format; expected 'csv' or 'pdf'",
+        )
+
+    campaign = await _get_owned_campaign(db, campaign_id, user.tenant_id)
+    if campaign is None:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    results = await _load_results(
+        db, tenant_id=user.tenant_id, campaign_id=campaign.id
+    )
+
+    if format == "csv":
+        content = generate_results_csv(results).encode("utf-8")
+        media_type = "text/csv"
+        filename = f"phishing-results-{str(campaign.id)[:8]}.csv"
+    else:
+        export_targets = [
+            ExportCampaignTarget(
+                email=r.email,
+                name=r.name,
+                status=r.status,
+                opened=r.opened,
+                clicked=r.clicked,
+                credential=r.credential,
+                reported=r.reported,
+            )
+            for r in results
+        ]
+        content = generate_campaign_pdf(campaign, export_targets)
+        media_type = "application/pdf"
+        filename = f"phishing-results-{str(campaign.id)[:8]}.pdf"
+
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

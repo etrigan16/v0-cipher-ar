@@ -19,7 +19,9 @@ import io
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
+from tests.test_asm import _register_and_login
 from tests.test_export import _pdf_text_tokens
+from tests.test_phishing_tracking import _launched_campaign
 
 from app.services.phishing.results import (
     TargetResult,
@@ -30,6 +32,26 @@ from app.services.phishing.results import (
 from app.services.reports.phishing_pdf import ExportCampaignTarget, generate_campaign_pdf
 
 CSV_HEADERS = ["email", "name", "status", "opened", "clicked", "credential", "reported"]
+
+
+async def _record_activity(
+    client,
+    token: str,
+    *,
+    open: bool = True,
+    click: bool = False,
+    credential: bool = False,
+    report: bool = False,
+) -> None:
+    """Simulate a target's tracking activity via the public endpoints."""
+    if open:
+        await client.get(f"/track/open/{token}.png")
+    if click:
+        await client.get(f"/track/click/{token}")
+    if credential:
+        await client.post(f"/l/{token}/submit", data={"username": "u", "password": "p"})
+    if report:
+        await client.post(f"/l/{token}/report")
 
 
 def _campaign_like(**overrides) -> SimpleNamespace:
@@ -198,3 +220,231 @@ class TestGenerateCampaignPdf:
         text = _pdf_text_tokens(pdf)
         assert "No targets" in text
         assert "0%" in text  # rates fall back to 0%
+
+
+# ── Integration: GET /phishing/campaigns/{id}/results (spec R1) ──────────────
+
+
+class TestResultsEndpoint:
+    async def test_results_require_auth(self, client):
+        resp = await client.get(
+            "/phishing/campaigns/00000000-0000-0000-0000-000000000000/results",
+            headers={"Authorization": "Bearer not-a-real-token"},
+        )
+        assert resp.status_code == 401
+
+    async def test_results_reflect_mixed_activity(self, client):
+        headers = await _register_and_login(client, "res@test.com", "Res Corp")
+        cid, tokens = await _launched_campaign(client, headers)
+        await _record_activity(client, tokens["Ana García"], click=True, credential=True)
+        await _record_activity(client, tokens["Bob Pérez"], open=False, report=True)
+
+        resp = await client.get(f"/phishing/campaigns/{cid}/results", headers=headers)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["campaign_id"] == cid
+        by_email = {t["email"]: t for t in body["targets"]}
+        assert set(by_email) == {"ana@x.com", "bob@x.com"}
+
+        ana = by_email["ana@x.com"]
+        assert ana["name"] == "Ana García"
+        assert ana["status"] == "active"
+        assert ana["opened"] is True and ana["opened_at"] is not None
+        assert ana["clicked"] is True and ana["clicked_at"] is not None
+        assert ana["credential"] is True and ana["credential_at"] is not None
+        assert ana["reported"] is False and ana["reported_at"] is None
+
+        bob = by_email["bob@x.com"]
+        assert bob["opened"] is False and bob["opened_at"] is None
+        assert bob["clicked"] is False
+        assert bob["credential"] is False
+        assert bob["reported"] is True and bob["reported_at"] is not None
+
+    async def test_results_no_activity_all_flags_false(self, client):
+        headers = await _register_and_login(client, "resno@test.com", "Res No")
+        cid, _ = await _launched_campaign(client, headers)
+
+        resp = await client.get(f"/phishing/campaigns/{cid}/results", headers=headers)
+        assert resp.status_code == 200
+        for target in resp.json()["targets"]:
+            assert target["opened"] is False
+            assert target["clicked"] is False
+            assert target["credential"] is False
+            assert target["reported"] is False
+            assert target["opened_at"] is None
+
+    async def test_results_unknown_campaign_404(self, client):
+        headers = await _register_and_login(client, "resunk@test.com", "Res Unk")
+        resp = await client.get(
+            "/phishing/campaigns/00000000-0000-0000-0000-000000000000/results",
+            headers=headers,
+        )
+        assert resp.status_code == 404
+
+    async def test_results_cross_tenant_404(self, client):
+        """R1 cross-tenant scenario: tenant B cannot read tenant A's results."""
+        headers_a = await _register_and_login(client, "riso-a@test.com", "Riso A Corp")
+        cid, tokens = await _launched_campaign(client, headers_a)
+        await _record_activity(client, tokens["Ana García"], click=True)
+
+        headers_b = await _register_and_login(client, "riso-b@test.com", "Riso B Corp")
+        resp = await client.get(f"/phishing/campaigns/{cid}/results", headers=headers_b)
+        assert resp.status_code == 404
+
+
+# ── Integration: GET /phishing/results-summary (spec R2) ─────────────────────
+
+
+class TestResultsSummary:
+    async def test_summary_requires_auth(self, client):
+        resp = await client.get(
+            "/phishing/results-summary",
+            headers={"Authorization": "Bearer not-a-real-token"},
+        )
+        assert resp.status_code == 401
+
+    async def test_summary_aggregates_tenant_data(self, client):
+        headers = await _register_and_login(client, "sum@test.com", "Sum Corp")
+        _, tokens = await _launched_campaign(client, headers)  # 2 active targets
+        await _record_activity(client, tokens["Ana García"], click=True, credential=True)
+        await _record_activity(client, tokens["Bob Pérez"], open=False, report=True)
+
+        resp = await client.get("/phishing/results-summary", headers=headers)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total_targets"] == 2
+        assert body["sent"] == 2
+        assert body["opened_count"] == 1
+        assert body["opened_rate"] == 50.0
+        assert body["clicked_count"] == 1
+        assert body["clicked_rate"] == 50.0
+        assert body["credentials_count"] == 1
+        assert body["reported_count"] == 1
+
+    async def test_summary_empty_tenant_zeros(self, client):
+        """R2 empty-tenant scenario: 200 with zero counts and 0% rates."""
+        headers = await _register_and_login(client, "sumzero@test.com", "Sum Zero")
+        resp = await client.get("/phishing/results-summary", headers=headers)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total_targets"] == 0
+        assert body["sent"] == 0
+        assert body["opened_count"] == 0
+        assert body["opened_rate"] == 0.0
+        assert body["clicked_count"] == 0
+        assert body["clicked_rate"] == 0.0
+        assert body["credentials_count"] == 0
+        assert body["reported_count"] == 0
+
+    async def test_summary_is_tenant_scoped(self, client):
+        """R2 from-real-data scenario: tenant B's summary never sees tenant A."""
+        headers_a = await _register_and_login(client, "siso-a@test.com", "Siso A Corp")
+        _, tokens = await _launched_campaign(client, headers_a)
+        await _record_activity(client, tokens["Ana García"], click=True)
+
+        headers_b = await _register_and_login(client, "siso-b@test.com", "Siso B Corp")
+        resp = await client.get("/phishing/results-summary", headers=headers_b)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total_targets"] == 0
+        assert body["sent"] == 0
+        assert body["opened_count"] == 0
+        assert body["opened_rate"] == 0.0
+
+
+# ── Integration: GET /phishing/campaigns/{id}/export (PR-5 spec R3) ──────────
+
+
+class TestExportEndpoint:
+    async def test_csv_export_columns_and_content_type(self, client):
+        headers = await _register_and_login(client, "expcsv@test.com", "Exp Csv")
+        cid, tokens = await _launched_campaign(client, headers)
+        await _record_activity(client, tokens["Ana García"], click=True, credential=True)
+        await _record_activity(client, tokens["Bob Pérez"], open=False, report=True)
+
+        resp = await client.get(
+            f"/phishing/campaigns/{cid}/export", params={"format": "csv"}, headers=headers
+        )
+        assert resp.status_code == 200
+        assert resp.headers["content-type"].startswith("text/csv")
+        assert "attachment" in resp.headers["content-disposition"]
+        rows = list(csv.reader(io.StringIO(resp.text)))
+        assert rows[0] == CSV_HEADERS
+        assert len(rows) == 3  # header + 2 targets
+        by_email = {r[0]: r for r in rows[1:]}
+        assert by_email["ana@x.com"][3:] == ["true", "true", "true", "false"]
+        assert by_email["bob@x.com"][3:] == ["false", "false", "false", "true"]
+
+    async def test_pdf_export_valid_header(self, client):
+        headers = await _register_and_login(client, "exppdf@test.com", "Exp Pdf")
+        cid, tokens = await _launched_campaign(client, headers)
+        await _record_activity(client, tokens["Ana García"], click=True)
+
+        resp = await client.get(
+            f"/phishing/campaigns/{cid}/export", params={"format": "pdf"}, headers=headers
+        )
+        assert resp.status_code == 200
+        assert resp.headers["content-type"].startswith("application/pdf")
+        assert "attachment" in resp.headers["content-disposition"]
+        assert resp.content[:4] == b"%PDF"
+        assert len(resp.content) > 1000
+
+    async def test_pdf_export_empty_campaign(self, client):
+        """Spec R3 empty-campaign scenario through the real endpoint."""
+        headers = await _register_and_login(client, "exppdfe@test.com", "Exp Pdf E")
+        tpl = await client.post(
+            "/phishing/templates",
+            json={
+                "name": "Alerta",
+                "subject": "Aviso {{nombre}}",
+                "html_body": "<p>{{nombre}}</p>",
+                "category": "bank",
+            },
+            headers=headers,
+        )
+        camp = await client.post(
+            "/phishing/campaigns",
+            json={"name": "Vacía", "template_id": tpl.json()["id"]},
+            headers=headers,
+        )
+        cid = camp.json()["id"]
+
+        resp = await client.get(
+            f"/phishing/campaigns/{cid}/export", params={"format": "pdf"}, headers=headers
+        )
+        assert resp.status_code == 200
+        assert resp.content[:4] == b"%PDF"
+        text = _pdf_text_tokens(resp.content)
+        assert "No targets" in text
+
+    async def test_export_invalid_format_400(self, client):
+        headers = await _register_and_login(client, "expbad@test.com", "Exp Bad")
+        cid, _ = await _launched_campaign(client, headers)
+        resp = await client.get(
+            f"/phishing/campaigns/{cid}/export", params={"format": "docx"}, headers=headers
+        )
+        assert resp.status_code == 400
+
+    async def test_export_missing_format_400(self, client):
+        headers = await _register_and_login(client, "expnone@test.com", "Exp None")
+        cid, _ = await _launched_campaign(client, headers)
+        resp = await client.get(f"/phishing/campaigns/{cid}/export", headers=headers)
+        assert resp.status_code == 400
+
+    async def test_export_cross_tenant_404(self, client):
+        headers_a = await _register_and_login(client, "exiso-a@test.com", "Exiso A Corp")
+        cid, _ = await _launched_campaign(client, headers_a)
+
+        headers_b = await _register_and_login(client, "exiso-b@test.com", "Exiso B Corp")
+        resp = await client.get(
+            f"/phishing/campaigns/{cid}/export", params={"format": "csv"}, headers=headers_b
+        )
+        assert resp.status_code == 404
+
+    async def test_export_requires_auth(self, client):
+        resp = await client.get(
+            "/phishing/campaigns/00000000-0000-0000-0000-000000000000/export",
+            params={"format": "csv"},
+            headers={"Authorization": "Bearer not-a-real-token"},
+        )
+        assert resp.status_code == 401
