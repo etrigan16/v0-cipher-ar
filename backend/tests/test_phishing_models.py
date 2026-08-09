@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
-from app.database import Base
+from app.database import Base, _TENANT_RLS_TABLES, _tenant_isolation_policy
 from app.models.campaign import Campaign
 from app.models.event import Event
 from app.models.target import Target
@@ -190,3 +190,38 @@ async def test_event_persists_with_metadata_json_and_occurred_at(db_session):
     assert ev.target_id == target.id
     assert ev.occurred_at is not None
     assert json.loads(ev.metadata_)["user_agent"] == "curl/8"
+
+
+# ── RLS policy registration (PostgreSQL-only at runtime) ─────────────────
+
+
+def test_rls_registration_includes_phishing_tables():
+    """init_db registers all 4 phishing tables; only templates allow NULL seeds."""
+    spec = dict(_TENANT_RLS_TABLES)
+    assert spec["templates"] is True
+    assert spec["campaigns"] is False
+    assert spec["targets"] is False
+    assert spec["events"] is False
+
+
+def test_templates_policy_exposes_null_tenant_seed_rows():
+    policy = _tenant_isolation_policy("templates", allow_null_tenant=True)
+    assert "CREATE POLICY tenant_isolation ON templates FOR ALL USING" in policy
+    assert (
+        "tenant_id = current_setting('app.current_tenant_id')::uuid OR tenant_id IS NULL"
+        in policy
+    )
+
+
+def test_strict_tables_policy_excludes_null_tenant():
+    policy = _tenant_isolation_policy("events")
+    assert "tenant_id = current_setting('app.current_tenant_id')::uuid" in policy
+    assert "OR tenant_id IS NULL" not in policy
+
+
+def test_assets_policy_sql_preserved_by_refactor():
+    """Approval: the refactored loop emits the exact pre-existing asset SQL."""
+    assert _tenant_isolation_policy("assets") == (
+        "CREATE POLICY tenant_isolation ON assets FOR ALL USING "
+        "(tenant_id = current_setting('app.current_tenant_id')::uuid)"
+    )
