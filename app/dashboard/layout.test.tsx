@@ -67,4 +67,25 @@ describe("DashboardLayout sidebar", () => {
       "/dashboard/phishing"
     )
   })
+
+  it("adds phishing sub-page nav links for templates, campaigns and results", () => {
+    render(
+      <DashboardLayout>
+        <div>page content</div>
+      </DashboardLayout>
+    )
+
+    expect(screen.getByRole("link", { name: /plantillas/i })).toHaveAttribute(
+      "href",
+      "/dashboard/phishing/templates"
+    )
+    expect(screen.getByRole("link", { name: /campañas/i })).toHaveAttribute(
+      "href",
+      "/dashboard/phishing/campaigns"
+    )
+    expect(screen.getByRole("link", { name: /resultados/i })).toHaveAttribute(
+      "href",
+      "/dashboard/phishing/results"
+    )
+  })
 })

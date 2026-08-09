@@ -4,13 +4,27 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useAuth, AuthProvider } from "@/components/auth-context"
-import { Crosshair, Siren, LayoutDashboard, ListChecks, LogOut, Menu, X } from "lucide-react"
+import {
+  BarChart3,
+  Crosshair,
+  FileText,
+  LayoutDashboard,
+  ListChecks,
+  LogOut,
+  Menu,
+  Send,
+  Siren,
+  X,
+} from "lucide-react"
 
 const sidebarLinks = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/attack-surface", label: "Attack Surface", icon: Crosshair },
   { href: "/dashboard/findings", label: "Findings", icon: ListChecks },
   { href: "/dashboard/phishing", label: "Phishing", icon: Siren },
+  { href: "/dashboard/phishing/templates", label: "Plantillas", icon: FileText },
+  { href: "/dashboard/phishing/campaigns", label: "Campañas", icon: Send },
+  { href: "/dashboard/phishing/results", label: "Resultados", icon: BarChart3 },
 ]
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
